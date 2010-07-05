@@ -32,9 +32,9 @@
   ], 
   [
    13, 
-   "IHB Sea Areas", 
-   "http://vocab.ndg.nerc.ac.uk/list/C161/current", 
-   "Terms used for sea areas from International Hydrographic Bureau, Limits of Oceans and Seas (Special Publication No. 23), 3rd edition 1953."
+   "SeaVoX water bodies", 
+   "http://vocab.ndg.nerc.ac.uk/list/C191/current", 
+   "Terms specified by the SeaVoX vocabulary governance to describe coherent regions of the hydrosphere. Includes land masses enclosing freshwater bodies."
   ], 
   [
    16, 

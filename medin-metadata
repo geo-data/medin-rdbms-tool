@@ -110,7 +110,6 @@ def main():
     parser.add_option("-d", '--debug', action="store_true",
                       help="Enable debugging output")
     parser.add_option("-i", '--metadata-id',
-                      default='test',       # we're testing with this so need a default
                       help="Output a specific metadata ID")
     parser.add_option("-v", '--validate', action="store_true",
                       help="""Enable validation of output XML. A three step validation is performed:
@@ -130,6 +129,39 @@ def main():
         parser.error("incorrect number of arguments")
 
     check_environment()
+
+    # standard library and third party imports
+    from cStringIO import StringIO
+    import libxml2
+
+    def process_metadata(metadata):
+        """
+        Process an individual metadata instance
+        """
+        # transform the metadata to XML
+        builder = XMLBuilder(metadata)
+        doc = builder.build()
+
+        # try and validate the xml
+        if options.validate:
+            log('Performing validation')
+            try:
+                validate(doc)
+            except ValidationError, e:
+                die(e.args[0])
+            except Exception, e:
+                die('FATAL ERROR: ' + str(e))
+            else:
+                log("The document is valid")
+
+        # output the document
+        #print doc
+        f = StringIO()
+        buf = libxml2.createOutputBuffer(f, 'utf-8')
+        doc.saveFormatFileTo(buf, 'utf-8', True)
+        doc.freeDoc()                       # clean up
+
+        print f.getvalue(),
 
     # try and load the medin modules
     try:
@@ -166,38 +198,19 @@ def main():
 
     # retrieve the metadata
     provider = provider_module.Session(connstr)
-    log('Getting metadata id %s' % options.metadata_id)
-    metadata = provider.getMetadataById(options.metadata_id)
-    if not metadata:
-        die('A metadata entry with the following id does not exist: %s' % options.metadata_id)
-
-    # transform the metadata to XML
-    builder = XMLBuilder(metadata)
-    doc = builder.build()
-
-    # try and validate the xml
-    if options.validate:
-        log('Performing validation')
-        try:
-            validate(doc)
-        except ValidationError, e:
-            die(e.args[0])
-        except Exception, e:
-            die('FATAL ERROR: ' + str(e))
-        else:
-            log("The document is valid")
-
-    # output the document
-    from cStringIO import StringIO
-    import libxml2
-
-    #print doc
-    f = StringIO()
-    buf = libxml2.createOutputBuffer(f, 'utf-8')
-    doc.saveFormatFileTo(buf, 'utf-8', True)
-    doc.freeDoc()                       # clean up
-    
-    print f.getvalue(),
+    if options.metadata_id:
+        # get a specific metadata id
+        log('Getting metadata id %s' % options.metadata_id)
+        metadata = provider.getMetadataById(options.metadata_id)
+        if not metadata:
+            die('A metadata entry with the following id does not exist: %s' % options.metadata_id)
+        process_metadata(metadata)
+    else:
+        # get all metadata entries
+        log('Retrieving all metadata entries')
+        for metadata in provider:
+            process_metadata(metadata)
+            print
 
 if __name__ == '__main__':
     main()

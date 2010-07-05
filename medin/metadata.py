@@ -13,6 +13,15 @@ class Metadata(object):
     The top level object
     """
 
+    # Element 1
+    title = None
+
+    # Element 2 - a list of alternative titles
+    alt_titles = None
+
+    # Element 6
+    unique_id = None
+
     # Element 26 
     date = None
 
@@ -24,6 +33,28 @@ class Metadata(object):
 
     # Element 29
     language = 'English'
+
+    def __init__(self):
+        self.alt_titles = []
+
+class UniqueId(object):
+    """
+    Element 6
+    """
+    id = None
+    codespace = None
+    
+    def __init__(self, id, codespace=None):
+        self.id = id
+        self.codespace = codespace
+
+    def __repr__(self):
+        return "<%s('%s')>" % (self.__class__.__name__, str(self))
+
+    def __str__(self):
+        if self.codespace:
+            return self.codespace + self.id
+        return self.id
 
 
 class XMLBuilder(object):
@@ -53,12 +84,43 @@ class XMLBuilder(object):
         Populate the XML document from the metadata DOM
         """
 
+        self.root.addChild(self.identificationInfo())
         self.root.addChild(self.dateStamp())
         self.root.addChild(self.metadataStandardName())
         self.root.addChild(self.metadataStandardVersion())
         self.root.addChild(self.language())
         
         return self.doc
+
+    def identificationInfo(self):
+        identificationInfo = self.doc.newDocNode(self.ns['gmd'], 'identificationInfo', None)
+        MD_DataIdentification = identificationInfo.newChild(None, 'MD_DataIdentification', None)
+        citation = MD_DataIdentification.newChild(None, 'citation', None)
+        CI_Citation = citation.newChild(None, 'CI_Citation', None)
+        CI_Citation.addChild(self.title())
+        for node in self.alternativeTitles():
+            CI_Citation.addChild(node)
+
+        return identificationInfo
+
+    def title(self):
+        """
+        Element 1 to XML
+        """
+        title = self.doc.newDocNode(self.ns['gmd'], 'title', None)
+        characterString = title.newChild(self.ns['gco'], 'CharacterString', self.m.title)
+        return title
+
+    def alternativeTitles(self):
+        """
+        Element 2 to XML
+        """
+        alt_titles = []
+        for title in self.m.alt_titles:
+            alternateTitle = self.doc.newDocNode(self.ns['gmd'], 'alternateTitle', None)
+            characterString = alternateTitle.newChild(self.ns['gco'], 'CharacterString', str(title))
+            alt_titles.append(alternateTitle)
+        return alt_titles
 
     def dateStamp(self):
         """
@@ -68,10 +130,10 @@ class XMLBuilder(object):
         
         dateStamp = self.doc.newDocNode(self.ns['gmd'], 'dateStamp', None)
         sdate = self.m.date.isoformat()
-        if isinstance(self.m.date, datetime.date):
-            ele_name = 'Date'
-        else:
+        if isinstance(self.m.date, datetime.datetime):
             ele_name = 'DateTime'
+        else:
+            ele_name = 'Date'
         date = dateStamp.newChild(self.ns['gco'], ele_name, sdate)
         return dateStamp
 

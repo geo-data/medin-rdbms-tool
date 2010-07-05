@@ -11,4 +11,16 @@ class Session(object):
         self.connstr = connstr
 
     def getMetadataById(self, id):
+        """
+        A stub providing access to individual metadata objects
+        """
+        raise NotImplementedError('This method must be overridden')
+
+    def __iter__(self):
+        """
+        A stub providing the provider iterator interface
+
+        This method should return an iterator of all provider metadata
+        objects.
+        """
         raise NotImplementedError('This method must be overridden')
