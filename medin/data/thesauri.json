@@ -1,0 +1,78 @@
+{
+ "nerc": [
+  [
+   2, 
+   "ISO countries", 
+   "http://vocab.ndg.nerc.ac.uk/list/C320/current", 
+   "ISO country codes from ISO3166-1 list taken from www.iso.org on 22/08/2007"
+  ], 
+  [
+   3, 
+   "ISO Topic Categories", 
+   "http://vocab.ndg.nerc.ac.uk/list/P051/current", 
+   "Terms defined by ISO describing data themes. Used to populate the mandatory ISO19115 topic category field."
+  ], 
+  [
+   6, 
+   "INSPIRE themes", 
+   "http://vocab.ndg.nerc.ac.uk/list/P220/current", 
+   "Groupings of spatial data according to Annex I, II and III of the INSPIRE Directive [DS-D2.5]"
+  ], 
+  [
+   10, 
+   "SeaDataNet PDV", 
+   "http://vocab.ndg.nerc.ac.uk/list/P021/current", 
+   "Terms describing fine-grained related groups of measurement phenomena designed to be used in dataset discovery interfaces."
+  ], 
+  [
+   11, 
+   "Vertical Coverages", 
+   "http://vocab.ndg.nerc.ac.uk/list/L131/current", 
+   "Terms used to describe data coverage over the vertical (z) co-ordinate."
+  ], 
+  [
+   13, 
+   "IHB Sea Areas", 
+   "http://vocab.ndg.nerc.ac.uk/list/C161/current", 
+   "Terms used for sea areas from International Hydrographic Bureau, Limits of Oceans and Seas (Special Publication No. 23), 3rd edition 1953."
+  ], 
+  [
+   16, 
+   "MEDIN formats", 
+   "http://vocab.ndg.nerc.ac.uk/list/M010/current", 
+   "Terms describing what types of data formats exist in a data set so a human can identify if the data is likely to be of use and select a tool to interrogate that data."
+  ]
+ ], 
+ "iso": [
+  [
+   1, 
+   "INSPIRE spatial data type", 
+   "INSPIRE terminology for Discovery metadata based on the ISO codelist for spatial data service types."
+  ], 
+  [
+   4, 
+   "ISO maintainence frequency codelist", 
+   "Controlled vocabulary for frequency of update"
+  ], 
+  [
+   7, 
+   "ISO Restriction codelist", 
+   "limitation(s)placed upon the access or use of the data"
+  ], 
+  [
+   8, 
+   "ISO Role codelist", 
+   "Controlled vocabulary for responsible party role"
+  ], 
+  [
+   12, 
+   "ISO scope codelist", 
+   "Resource type vocabulary"
+  ], 
+  [
+   17, 
+   "ISO date type codelist", 
+   "IS0 date type vocabulary"
+  ]
+ ]
+}

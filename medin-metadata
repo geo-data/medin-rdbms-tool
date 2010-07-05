@@ -1,0 +1,203 @@
+#!/bin/env python
+
+# ensure we're using UTF-8
+import sys
+sys = reload(sys)
+sys.setdefaultencoding('utf-8')
+
+from optparse import OptionParser
+import os
+
+class Version(object):
+    """Representation of program version information"""
+
+    def __init__(self, major, minor, patch):
+        self.major = major
+        self.minor = minor
+        self.patch = patch
+
+    def parse(cls, version_str):
+        """Class method to parse a version string into a Version object"""
+        import re
+
+        m = re.search('(\d+)\.(\d+)\.(\d+)', version_str)
+        if not m:
+            raise ValueError('The version string could not be parsed')
+
+        return cls(*[int(g) for g in m.groups()])
+    parse = classmethod(parse)
+
+    def __cmp__(self, other):
+        """Compare one version with another"""
+        
+        res = cmp(self.major, other.major)
+        if res != 0: return res
+        res = cmp(self.minor, other.minor)
+        if res != 0: return res
+        return cmp(self.patch, other.patch)
+
+    def __str__(self):
+        return '%d.%d.%d' % (self.major, self.minor, self.patch)
+
+def die(msg):
+    """End the program with a message"""
+
+    sys.stderr.write("%s\n" % msg)
+    sys.exit(1)
+
+def get_version(config_cmd):
+    """Try and retrieve a program version"""
+
+    import subprocess
+
+    try:
+        p = subprocess.Popen([config_cmd, '--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE);
+    except OSError, e:
+        die("There was an error retrieving version information using %s: %s" % (config_cmd, str(e)))
+    out, err = p.communicate()
+    if err and p.returncode != 0:
+        raise die("There was an error retrieving version information using %s: %s" % (config_cmd, err))
+
+    try:
+        return Version.parse(out)
+    except ValueError:
+        die('The version of %s could not be determined' % config_cmd)
+
+def check_environment():
+    """Check whether the system supports the program requirements"""
+
+    # ensure we've got libxml2 and libxslt on the system
+    try:
+        import libxml2
+    except ImportError:
+        die('The libxml2 python module needs to be installed. See http://xmlsoft.org/python.html')
+
+    try:
+        import libxslt
+    except ImportError:
+        die('The libxslt python module needs to be installed. See http://xmlsoft.org/XSLT/python.html')
+
+    # check we've got minimum python support
+    if Version(*sys.version_info[:3]) < Version(2, 6, 0):
+        die('Python 2.6 or greater is required')
+
+    # check we've got minimum libxml2 support
+    version_cur = get_version('xml2-config')
+    version_min = Version(2, 6, 26)
+    if version_cur < version_min:
+        die('Your version of libxml2 is %s, it needs to be at least %s' % (version_cur, version_min))
+
+    # check we've got minimum libxslt support
+    version_cur = get_version('xslt-config')
+    version_min = Version(1, 1, 17)
+    if version_cur < version_min:
+        die('Your version of libxslt is %s, it needs to be at least %s' % (version_cur, version_min))
+
+def main():
+    # parse out the command options
+    usage = """usage: %prog [OPTION]... [PROVIDER] [CONNSTRING]
+
+    Extract Metadata from a data provider database as MEDIN XML.
+
+    PROVIDER is the provider name e.g. 'bodc' and CONNSTRING is the
+    connection parameter string for accessing the database."""
+
+    parser = OptionParser(usage=usage)
+
+    # add the command line options
+    parser.add_option("-u", '--update-vocab', action="store_true",
+                      help="Update the locally stored vocabularies from the internet")
+    parser.add_option("-d", '--debug', action="store_true",
+                      help="Enable debugging output")
+    parser.add_option("-i", '--metadata-id',
+                      default='test',       # we're testing with this so need a default
+                      help="Output a specific metadata ID")
+    parser.add_option("-v", '--validate', action="store_true",
+                      help="""Enable validation of output XML. A three step validation is performed:
+
+    1. Validate against the ISO TC 211 schema.
+    2. Validate against the ISO TS 19139 A1 Constraints.
+    3. Validate against the Medin Metadata Profile.
+
+    Any XML document passing these tests complies with the Medin Metadata
+    requirements.""")
+    parser.add_option("-p", '--provider', action="store_true")
+
+    (options, args) = parser.parse_args()
+    try:
+        provider_name, connstr = args
+    except ValueError:
+        parser.error("incorrect number of arguments")
+
+    check_environment()
+
+    # try and load the medin modules
+    try:
+        import medin
+        from medin import log
+        import medin.provider
+        from medin.validate import validate, ValidationError
+        import medin.vocabulary
+        from medin.metadata import XMLBuilder
+    except ImportError:
+        die('The medin module could not be found. Please ensure it is in your python module search path.')
+
+    # turn on debugging
+    if options.debug:
+        medin.DEBUG = True
+
+    # try and load the provider plugin
+    log('Attempting to load provider %s' % provider_name)
+    import imp
+    try:
+        provider_module = imp.load_module(provider_name, *imp.find_module(provider_name, medin.provider.__path__))
+    except ImportError:
+        die('The provider is not supported: %s' % provider_name)
+
+    # start a vocabulary session
+    vocabs = medin.vocabulary.Session()
+
+    # update the vocabularies
+    if options.update_vocab:
+        log("Setting up vocabularies")
+        vocabs.create()    # clear and create the schema and hard-coded data
+        log("Updating vocabularies from online sources")
+        vocabs.update()    # update the online vocabs
+
+    # retrieve the metadata
+    provider = provider_module.Session(connstr)
+    log('Getting metadata id %s' % options.metadata_id)
+    metadata = provider.getMetadataById(options.metadata_id)
+    if not metadata:
+        die('A metadata entry with the following id does not exist: %s' % options.metadata_id)
+
+    # transform the metadata to XML
+    builder = XMLBuilder(metadata)
+    doc = builder.build()
+
+    # try and validate the xml
+    if options.validate:
+        log('Performing validation')
+        try:
+            validate(doc)
+        except ValidationError, e:
+            die(e.args[0])
+        except Exception, e:
+            die('FATAL ERROR: ' + str(e))
+        else:
+            log("The document is valid")
+
+    # output the document
+    from cStringIO import StringIO
+    import libxml2
+
+    #print doc
+    f = StringIO()
+    buf = libxml2.createOutputBuffer(f, 'utf-8')
+    doc.saveFormatFileTo(buf, 'utf-8', True)
+    doc.freeDoc()                       # clean up
+    
+    print f.getvalue(),
+
+if __name__ == '__main__':
+    main()
