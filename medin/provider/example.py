@@ -1,18 +1,20 @@
 """
-BODC Metadata Provider
+Example Metadata Provider
 
-This module has a knowledge of the BODC metadata schema and provides a
-sqlalchemy mapping from the schema to the metadata object.
+This provides an example of how to add a metadata provider. It is
+based on the BODC metadata schema, which it partly implements in a
+sqlite database. This database can be found in data/example.sqlite
+
+As with any provider, the primary purpose of this module is to create
+a sqlalchemy mapping from the database schema to the medin.Metadata
+class.
 """
 
-# - set up an in-memory sqlite database in lieu of the oracle db
-# - set up a sqlalchemy mapping to the db to populate the minimal Metadata object
-
 from medin.provider import Session
-from medin.metadata import Metadata
+import medin.metadata as metadata
 
 # The BODC metadata classes
-class BODCMetadata(Metadata):
+class BODCMetadata(metadata.Metadata):
     """
     A class that is used for the sqlalchemy mapping
 
@@ -33,6 +35,39 @@ class AlternativeTitle(object):
     def __str__(self):
         return str(self.ALTTITLE)
 
+
+class UniqueId(metadata.UniqueId):
+    """
+    Element 6
+
+    This element is defined to allow it to be used as a SQLAlchemy
+    composite column type
+    (http://www.sqlalchemy.org/docs/mappers.html#composite-column-types).
+    """
+    def __composite_values__(self):
+        return [self.id, self.codespace]
+    
+    def __set_composite_values__(self, id, codespace):
+        self.id = id
+        self.codespace = codespace
+
+class BoundingBox(metadata.BoundingBox):
+    """
+    Element 12
+
+    This element is defined to allow it to be used as a SQLAlchemy
+    composite column type
+    (http://www.sqlalchemy.org/docs/mappers.html#composite-column-types).
+    """
+    def __composite_values__(self):
+        return [self.minx, self.miny, self.maxx, self.maxy]
+    
+    def __set_composite_values__(self, minx, miny, maxx, maxy):
+        self.minx = minx
+        self.miny = miny
+        self.maxx = maxx
+        self.maxy = maxy
+
 # The concrete provider Session class
 class Session(Session):
     """
@@ -45,11 +80,14 @@ class Session(Session):
     def __init__(self, connstr):
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
-        from medin import DEBUG
+        import medin
+        import os.path
 
         super(Session, self).__init__(connstr)
 
-        self.engine = create_engine('sqlite:///'+connstr, echo=DEBUG)
+        # we ignore the connection string
+        dbname = os.path.abspath(os.path.join(os.path.dirname(medin.__file__), 'data', 'example.sqlite'))
+        self.engine = create_engine('sqlite:///'+dbname, echo=medin.DEBUG)
         self.setMapping()
         Sess = sessionmaker(bind=self.engine)
         self.sess = Sess()
@@ -100,8 +138,7 @@ class Session(Session):
         """
         Map the Metadata classes to the provider database schema
         """
-        from sqlalchemy.orm import mapper, relationship
-        from medin.metadata import UniqueId
+        from sqlalchemy.orm import mapper, relationship, composite
 
         schema = self.getSchema()
 
@@ -112,21 +149,23 @@ class Session(Session):
         mapper(BODCMetadata, metadata_table, properties={
             'date': metadata_table.c.MODDATE,
             'title': metadata_table.c.TITLE,
+            'abstract': metadata_table.c.ABSTRACT,
+            'unique_id': composite(UniqueId, metadata_table.c.IDENTIFIER, metadata_table.c.CODESPACE),
+            'bounding_box': composite(BoundingBox, metadata_table.c.WEST, metadata_table.c.SOUTH, metadata_table.c.EAST, metadata_table.c.NORTH),
             'alt_titles': relationship(AlternativeTitle, order_by=AlternativeTitle.ALTTITLE)
         })
 
-    def getMetadataById(self, id):
-        # return a dummy metadata instance
-        metadata = BODCMetadata()
-
-        # set a dummy date
-        from datetime import date
-        metadata.date = date.today()
-
-        return metadata
+    def getMetadataById(self, code):
+        # return a metadata instance
+        from sqlalchemy.orm.exc import NoResultFound
+        
+        id = UniqueId(code, 'http://www.bodc.ac.uk/')
+        try:
+            return self.sess.query(BODCMetadata).filter(BODCMetadata.unique_id == id).one()
+        except NoResultFound:
+            return None
 
     def __iter__(self):
-        # iterate over dummy metadata instances
-        from datetime import datetime
+        # iterate over all metadata instances
         for metadata in self.sess.query(BODCMetadata):
             yield metadata

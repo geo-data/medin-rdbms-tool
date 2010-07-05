@@ -99,7 +99,7 @@ def main():
 
     Extract Metadata from a data provider database as MEDIN XML.
 
-    PROVIDER is the provider name e.g. 'bodc' and CONNSTRING is the
+    PROVIDER is the provider name e.g. 'example' and CONNSTRING is the
     connection parameter string for accessing the database."""
 
     parser = OptionParser(usage=usage)
@@ -113,14 +113,11 @@ def main():
                       help="Output a specific metadata ID")
     parser.add_option("-v", '--validate', action="store_true",
                       help="""Enable validation of output XML. A three step validation is performed:
-
-    1. Validate against the ISO TC 211 schema.
-    2. Validate against the ISO TS 19139 A1 Constraints.
-    3. Validate against the Medin Metadata Profile.
-
-    Any XML document passing these tests complies with the Medin Metadata
-    requirements.""")
-    parser.add_option("-p", '--provider', action="store_true")
+1. Validate against the ISO TC 211 schema.
+2. Validate against the ISO TS 19139 A1 Constraints.
+3. Validate against the Medin Metadata Profile.
+Any XML document passing these tests complies with the Medin Metadata
+requirements.""")
 
     (options, args) = parser.parse_args()
     try:

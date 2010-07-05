@@ -19,8 +19,14 @@ class Metadata(object):
     # Element 2 - a list of alternative titles
     alt_titles = None
 
+    # Element 3
+    abstract = None
+
     # Element 6
     unique_id = None
+
+    # Element 12
+    bounding_box = None
 
     # Element 26 
     date = None
@@ -48,6 +54,12 @@ class UniqueId(object):
         self.id = id
         self.codespace = codespace
 
+    def __eq__(self, other):
+        return self.id == other.id and self.codespace == other.codespace
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def __repr__(self):
         return "<%s('%s')>" % (self.__class__.__name__, str(self))
 
@@ -56,10 +68,40 @@ class UniqueId(object):
             return self.codespace + self.id
         return self.id
 
+class BoundingBox(object):
+    """
+    Element 12
+    """
+    minx = None
+    miny = None
+    maxx = None
+    maxy = None
+
+    def __init__(self, minx, miny, maxx, maxy):
+        self.minx = minx
+        self.miny = miny
+        self.maxx = maxx
+        self.maxy = maxy
+
+    def __eq__(self, other):
+        return self.minx == other.minx and self.miny == other.miny \
+               and self.maxx == other.maxx and self.maxy == other.maxy
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __repr__(self):
+        return "<%s(%s)>" % (self.__class__.__name__, str(self))
+
+    def __str__(self):
+        return '[%s, %s, %s, %s]' % tuple([str(o) for o in (self.minx, self.miny, self.maxx, self.maxy)])
 
 class XMLBuilder(object):
     """
     Turn a Metadata object into XML
+
+    The sole purpose of this class is to convert Metadata DOM
+    instances to a Libxml2 document (see the build() method)
     """
 
     def __init__(self, metadata):
@@ -82,6 +124,8 @@ class XMLBuilder(object):
     def build(self):
         """
         Populate the XML document from the metadata DOM
+
+        This should only be called once per instance!
         """
 
         self.root.addChild(self.identificationInfo())
@@ -93,6 +137,9 @@ class XMLBuilder(object):
         return self.doc
 
     def identificationInfo(self):
+        """
+        Create the identification information
+        """
         identificationInfo = self.doc.newDocNode(self.ns['gmd'], 'identificationInfo', None)
         MD_DataIdentification = identificationInfo.newChild(None, 'MD_DataIdentification', None)
         citation = MD_DataIdentification.newChild(None, 'citation', None)
@@ -100,6 +147,9 @@ class XMLBuilder(object):
         CI_Citation.addChild(self.title())
         for node in self.alternativeTitles():
             CI_Citation.addChild(node)
+        CI_Citation.addChild(self.identifier())
+        MD_DataIdentification.addChild(self.abstract())
+        MD_DataIdentification.addChild(self.extent())
 
         return identificationInfo
 
@@ -121,6 +171,45 @@ class XMLBuilder(object):
             characterString = alternateTitle.newChild(self.ns['gco'], 'CharacterString', str(title))
             alt_titles.append(alternateTitle)
         return alt_titles
+
+    def abstract(self):
+        """
+        Element 3 to XML
+        """
+        abstract = self.doc.newDocNode(self.ns['gmd'], 'abstract', None)
+        characterString = abstract.newChild(self.ns['gco'], 'CharacterString', str(self.m.abstract))
+        return abstract
+
+    def identifier(self):
+        """
+        Element 6 to XML
+        """
+        unique_id = self.m.unique_id
+        identifier = self.doc.newDocNode(self.ns['gmd'], 'identifier', None)
+        code = identifier.newChild(None, 'code', None)
+        characterString = code.newChild(self.ns['gco'], 'CharacterString', unique_id.id)
+        if unique_id.codespace:
+            codeSpace = identifier.newChild(None, 'codeSpace', None)
+            characterString = codeSpace.newChild(self.ns['gco'], 'CharacterString', unique_id.codespace)
+            
+        return identifier
+
+    def extent(self):
+        bbox = self.m.bounding_box
+        extent = self.doc.newDocNode(self.ns['gmd'], 'extent', None)
+        EX_Extent = extent.newChild(None, 'EX_Extent', None)
+        geographicElement = EX_Extent.newChild(None, 'geographicElement', None)
+        EX_GeographicBoundingBox = geographicElement.newChild(None, 'EX_GeographicBoundingBox', None)
+        westBoundLongitude = EX_GeographicBoundingBox.newChild(None, 'westBoundLongitude', None)
+        decimal = westBoundLongitude.newChild(self.ns['gco'], 'Decimal', str(bbox.minx))
+        eastBoundLongitude = EX_GeographicBoundingBox.newChild(None, 'eastBoundLongitude', None)
+        decimal = eastBoundLongitude.newChild(self.ns['gco'], 'Decimal', str(bbox.maxx))
+        southBoundLongitude = EX_GeographicBoundingBox.newChild(None, 'southBoundLongitude', None)
+        decimal = southBoundLongitude.newChild(self.ns['gco'], 'Decimal', str(bbox.miny))
+        northBoundLongitude = EX_GeographicBoundingBox.newChild(None, 'northBoundLongitude', None)
+        decimal = northBoundLongitude.newChild(self.ns['gco'], 'Decimal', str(bbox.maxy))
+
+        return extent
 
     def dateStamp(self):
         """
