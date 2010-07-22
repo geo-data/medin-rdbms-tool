@@ -22,6 +22,9 @@ class Metadata(object):
     # Element 3
     abstract = None
 
+    # Element 4
+    resource_type = None
+
     # Element 6
     unique_id = None
 
@@ -129,6 +132,7 @@ class XMLBuilder(object):
         """
 
         self.root.addChild(self.identificationInfo())
+        self.root.addChild(self.hierarchyLevel())
         self.root.addChild(self.dateStamp())
         self.root.addChild(self.metadataStandardName())
         self.root.addChild(self.metadataStandardVersion())
@@ -152,6 +156,11 @@ class XMLBuilder(object):
         MD_DataIdentification.addChild(self.extent())
 
         return identificationInfo
+
+    def hierarchyLevel(self):
+        hierarchyLevel = self.doc.newDocNode(self.ns['gmd'], 'hierarchyLevel', None)
+        hierarchyLevel.addChild(self.MD_ScopeCode())
+        return hierarchyLevel
 
     def title(self):
         """
@@ -179,6 +188,18 @@ class XMLBuilder(object):
         abstract = self.doc.newDocNode(self.ns['gmd'], 'abstract', None)
         characterString = abstract.newChild(self.ns['gco'], 'CharacterString', str(self.m.abstract))
         return abstract
+
+    def MD_ScopeCode(self):
+        """
+        Element 4 to XML
+        (must be 5 [dataset], 6 [series], or 14 [service])
+        """
+        term = self.m.vocabs.getResourceTypeFromCode(self.m.resource_type)
+        print str(term.term)
+        MD_ScopeCode = self.doc.newDocNode(self.ns['gmd'], 'MD_ScopeCode', term.term)
+        MD_ScopeCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#MD_ScopeCode')
+        MD_ScopeCode.setProp('codeListValue', term.term)
+        return MD_ScopeCode
 
     def identifier(self):
         """

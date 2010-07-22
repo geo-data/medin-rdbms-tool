@@ -7,8 +7,9 @@ class Session(object):
     Abstract base class for interacting with a data provider
     """
 
-    def __init__(self, connstr):
+    def __init__(self, connstr, vocabs):
         self.connstr = connstr
+        self.vocabs = vocabs
 
     def getMetadataById(self, id):
         """

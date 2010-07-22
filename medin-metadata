@@ -194,7 +194,7 @@ requirements.""")
         vocabs.update()    # update the online vocabs
 
     # retrieve the metadata
-    provider = provider_module.Session(connstr)
+    provider = provider_module.Session(connstr, vocabs)
     if options.metadata_id:
         # get a specific metadata id
         log('Getting metadata id %s' % options.metadata_id)

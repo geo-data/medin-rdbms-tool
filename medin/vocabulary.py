@@ -1,4 +1,3 @@
-import os
 import sqlalchemy
 from sqlalchemy import Column, Integer, String, Date, ForeignKey, ForeignKeyConstraint
 from sqlalchemy.ext.declarative import declarative_base
@@ -15,9 +14,11 @@ def get_engine():
     except NameError:
         pass
 
+    from os.path import dirname, join, abspath
     from medin import DEBUG
 
-    uri = 'sqlite:///%s' % os.path.abspath(os.path.join(os.path.dirname(__file__), 'data', 'vocabularies.sqlite'))
+    dbname = abspath(join(dirname(__file__), 'data', 'vocabularies.sqlite'))
+    uri = 'sqlite:///%s' % abspath(dbname)
     _engine = sqlalchemy.create_engine(uri, echo=DEBUG)
     _engine.execute('PRAGMA foreign_keys = ON') # we need referential integrity!
     return _engine
@@ -45,7 +46,9 @@ class Thesaurus(Base):
         self.name = name
 
     def __repr__(self):
-        return "<%s(%d, '%s')>" % (self.__class__.__name__, self.id, self.name)
+        return "<%s(%d, '%s')>" % (
+            self.__class__.__name__, self.id, self.name
+            )
 
 class Term(Base):
     __tablename__ = 'terms'
@@ -53,10 +56,12 @@ class Term(Base):
     term = Column(String, primary_key=True)
     thesaurus_id = Column(Integer, ForeignKey('thesauri.id', ondelete='CASCADE'), primary_key=True)
     definition = Column(String)
+    code = Column(Integer)
 
     __mapper_args__ = {'polymorphic_on': thesaurus_id}
 
-    def __init__(self, term, definition=None):
+    def __init__(self, code, term, definition=None):
+        self.code = code
         self.term = term
         self.definition = definition
 
@@ -100,7 +105,9 @@ def ISOTerm(thesaurus_id, *args, **kwargs):
     try:
         klass = class_map[thesaurus_id]
     except KeyError:
-        raise ValueError('The thesaurus id is not an ISO thesaurus: %s' % str(thesaurus_id))
+        raise ValueError(
+            'The thesaurus id is not an ISO thesaurus: %s' % str(thesaurus_id)
+            )
 
     return klass(*args, **kwargs)
 
@@ -121,7 +128,7 @@ class NERCTerm(Term):
     __table_args__ = (
         ForeignKeyConstraint(['thesaurus_id', 'term'], ['terms.thesaurus_id', 'terms.term'], ondelete='CASCADE'),
         {}
-    )
+        )
 
     # Vocabulary entry key
     key = Column(String, primary_key=True)
@@ -133,7 +140,7 @@ class NERCTerm(Term):
     thesaurus_id = Column(Integer, nullable=False)
 
     def __init__(self, key, term, abbrv, definition=None):
-        super(NERCTerm, self).__init__(term, definition)
+        super(NERCTerm, self).__init__(None, term, definition)
         self.key = key
         self.abbrv = abbrv
 
@@ -169,11 +176,13 @@ class NERCVocab(object):
     """
 
     def __init__(self, wsdl=None):
+        from os.path import dirname, join, abspath
         import suds
         
         if wsdl is None:
             # from http://www.bodc.ac.uk/extlink/http%3A//vocab.ndg.nerc.ac.uk/1.1/VocabServerAPI_dl.wsdl
-            wsdl = 'file://%s' % os.path.abspath(os.path.join(os.path.dirname(__file__), 'data', 'VocabServerAPI_dl.wsdl'))
+            wsdlname = join(dirname(__file__), 'data', 'VocabServerAPI_dl.wsdl')
+            wsdl = 'file://%s' % abspath(wsdlname)
 
         self.client = suds.client.Client(wsdl)
 
@@ -188,6 +197,7 @@ class NERCVocab(object):
 
         terms = []
         for entry in vlist:
+            print str(entry)
             term = NERCTerm(entry.entryKey, entry.entryTerm, entry.entryTermAbbr, entry.entryTermDef)
             terms.append(term)
 
@@ -211,16 +221,16 @@ class Session(object):
         """
         from datetime import date
         from json import load
-        import os.path
+        from os.path import dirname, join
 
         # ensure the schema is valid
         Thesaurus.metadata.create_all(self.engine)
 
         # these dictionaries define the supported thesauri
-        thesauri_path = os.path.join(os.path.dirname(__file__), 'data', 'thesauri.json')
+        thesauri_path = join(dirname(__file__), 'data', 'thesauri.json')
         thesauri_data = load(open(thesauri_path, 'r'))
 
-        terms_path = os.path.join(os.path.dirname(__file__), 'data', 'terms.json')
+        terms_path = join(dirname(__file__), 'data', 'terms_with_codes.json')
         terms_data = load(open(terms_path, 'r'))
 
         # delete existing data. We only need to delete the thesauri as
@@ -245,8 +255,8 @@ class Session(object):
 
             # add the ISO terms to the thesaurus
             terms = terms_data['iso'][str(id)]
-            for word, definition in terms:
-                term = ISOTerm(id, word, definition)
+            for code, word, definition in terms:
+                term = ISOTerm(id, code, word, definition)
                 thesaurus.terms.append(term)
             
             thesauri.append(thesaurus)
@@ -284,11 +294,28 @@ class Session(object):
     def _getTerm(self, word, term_class):
         """
         Retrieve a term associated with a specific thesaurus
+        This is of limited use, it only returns the same word you put in.
+        It does ensure that the term is in the controlled vocab.
         """
         from sqlalchemy.orm.exc import NoResultFound
 
         try:
             return self.session.query(term_class).filter(term_class.term == word).one()
+        except NoResultFound:
+            return None
+
+    def _getTermFromCode(self, code, term_class):
+        """
+        This uses the numerical code for lookup
+        used in eg. METADATA.RESTYP_ID
+        
+        NB: if the ISO terms' codes are going to change between
+        different archive standards, then this is not the right
+        place to do this lookup.
+        """
+        from sqlalchemy.orm.exc import NoResultFound
+        try:
+            return self.session.query(term_class).filter(term_class.code == code).one()
         except NoResultFound:
             return None
 
@@ -330,6 +357,25 @@ class Session(object):
 
     def getMEDINFormat(self, word):
         return self._getTerm(word, MEDINFormat)
+
+    def getINSPIREDataTypeFromCode(self, code):
+        return self._getTermFromCode(code, INSPIREDataType)
+
+    def getMaintenanceFrequencyFromCode(self, code):
+        return self._getTermFromCode(code, MaintenanceFrequency)
+
+    def getAccessRestrictionFromCode(self, code):
+        return self._getTermFromCode(code, AccessRestriction)
+
+    def getContactRoleFromCode(self, code):
+        return self._getTermFromCode(code, ContactRole)
+
+    def getResourceTypeFromCode(self, code):
+        return self._getTermFromCode(code, ResourceType)
+
+    def getDateTypeFromCode(self, code):
+        return self._getTermFromCode(code, DateType)
+
 
 if __name__ == '__main__':
     session = Session()

@@ -35,7 +35,6 @@ class AlternativeTitle(object):
     def __str__(self):
         return str(self.ALTTITLE)
 
-
 class UniqueId(metadata.UniqueId):
     """
     Element 6
@@ -76,21 +75,26 @@ class Session(Session):
     This provides an interface to obtaining metadata entries by ID as
     well as iterating over the entire metadata collection.
     """
+    engine = None
 
-    def __init__(self, connstr):
-        from sqlalchemy import create_engine
+    def __init__(self, connstr, vocabs):
         from sqlalchemy.orm import sessionmaker
-        import medin
-        import os.path
-
-        super(Session, self).__init__(connstr)
-
-        # we ignore the connection string
-        dbname = os.path.abspath(os.path.join(os.path.dirname(medin.__file__), 'data', 'example.sqlite'))
-        self.engine = create_engine('sqlite:///'+dbname, echo=medin.DEBUG)
+        super(Session, self).__init__(connstr, vocabs)
+        engine = self.getEngine(connstr)
         self.setMapping()
-        Sess = sessionmaker(bind=self.engine)
+        Sess = sessionmaker(bind=engine)
         self.sess = Sess()
+
+    def getEngine(self, connstr):
+         # we ignore the connection string
+        if self.engine:
+            return self.engine
+        from sqlalchemy import create_engine
+        from os.path import join, dirname, abspath
+        import medin
+        dbname = abspath(join(dirname(medin.__file__),'data','example.sqlite'))
+        self.engine = create_engine('sqlite:///'+dbname, echo=medin.DEBUG)
+        return self.engine
 
     def getSchema(self):
         """
@@ -150,6 +154,7 @@ class Session(Session):
             'date': metadata_table.c.MODDATE,
             'title': metadata_table.c.TITLE,
             'abstract': metadata_table.c.ABSTRACT,
+            'resource_type': metadata_table.c.RESTYP_ID,
             'unique_id': composite(UniqueId, metadata_table.c.IDENTIFIER, metadata_table.c.CODESPACE),
             'bounding_box': composite(BoundingBox, metadata_table.c.WEST, metadata_table.c.SOUTH, metadata_table.c.EAST, metadata_table.c.NORTH),
             'alt_titles': relationship(AlternativeTitle, order_by=AlternativeTitle.ALTTITLE)
@@ -161,11 +166,14 @@ class Session(Session):
         
         id = UniqueId(code, 'http://www.bodc.ac.uk/')
         try:
-            return self.sess.query(BODCMetadata).filter(BODCMetadata.unique_id == id).one()
+            metadata = self.sess.query(BODCMetadata).filter(BODCMetadata.unique_id == id).one()
+            metadata.vocabs = self.vocabs
+            return metadata
         except NoResultFound:
             return None
 
     def __iter__(self):
         # iterate over all metadata instances
         for metadata in self.sess.query(BODCMetadata):
+            metadata.vocabs = self.vocabs
             yield metadata
