@@ -35,6 +35,12 @@ class AlternativeTitle(object):
     def __str__(self):
         return str(self.ALTTITLE)
 
+class ResourceLocator(metadata.ResourceLocator):
+    """
+    Element 5
+    """
+    CITATIONID = None
+
 class UniqueId(metadata.UniqueId):
     """
     Element 6
@@ -103,39 +109,63 @@ class Session(Session):
         from sqlalchemy import Table, Column, Numeric, String, Date, DateTime, MetaData, ForeignKey
 
         metadata = MetaData() # N.B. not a medin.metadata.Metadata object!!
-        metadata_table = Table('METADATA', metadata,
-                               Column('METADATAID', Numeric(10), primary_key=True),
-                               Column('TITLE', String(500)),
-                               Column('ABSTRACT', String(4000)),
-                               Column('RESTYP_ID', Numeric(10), nullable=False),
-                               Column('RESLOC', String(200)),
-                               Column('IDENTIFIER', String(255)),
-                               Column('CODESPACE', String(255), default='http://www.bodc.ac.uk'),
-                               Column('SDSTYP_ID', Numeric(10)),
-                               Column('WEST', Numeric(7,4)),
-                               Column('EAST', Numeric(7,4)),
-                               Column('NORTH', Numeric(7,4)),
-                               Column('SOUTH', Numeric(7,4)),
-                               Column('VERTEXTMIN', Numeric(11)),
-                               Column('VERTEXTMAX', Numeric(11)),
-                               Column('VERTEXTREF_ID', String(500)),
-                               Column('SRSYS_ID', String(500)),
-                               Column('TEMPEXBGN', String(20)),
-                               Column('REVDATE', Date()),
-                               Column('CREATED', Date()),
-                               Column('PUBDATE', Date()),
-                               Column('TEMPEXEND', String(20)),
-                               Column('LINEAGE', String(4000)),
-                               Column('SPARES', String(20)),
-                               Column('FREQMOD_ID', Numeric(10)),
-                               Column('MODDATE', DateTime()),
-                               Column('MODBY', String(50)),
-                               Column('STD_ID', Numeric(10))
-                               )
-        alt_title_table = Table('ALT_TITLE', metadata,
-                                Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True),
-                                Column('ALTTITLE', String(350), primary_key=True)
-                                )
+        metadata_table = Table(
+            'METADATA', metadata,
+            Column('METADATAID', Numeric(10), primary_key=True),
+            Column('TITLE', String(500)),
+            Column('ABSTRACT', String(4000)),
+            Column('RESTYP_ID', Numeric(10), nullable=False),
+            Column('RESLOC', String(200)),
+            Column('IDENTIFIER', String(255)),
+            Column('CODESPACE', String(255), default='http://www.bodc.ac.uk'),
+            Column('SDSTYP_ID', Numeric(10)),
+            Column('WEST', Numeric(7,4)),
+            Column('EAST', Numeric(7,4)),
+            Column('NORTH', Numeric(7,4)),
+            Column('SOUTH', Numeric(7,4)),
+            Column('VERTEXTMIN', Numeric(11)),
+            Column('VERTEXTMAX', Numeric(11)),
+            Column('VERTEXTREF_ID', String(500)),
+            Column('SRSYS_ID', String(500)),
+            Column('TEMPEXBGN', String(20)),
+            Column('REVDATE', Date()),
+            Column('CREATED', Date()),
+            Column('PUBDATE', Date()),
+            Column('TEMPEXEND', String(20)),
+            Column('LINEAGE', String(4000)),
+            Column('SPARES', String(20)),
+            Column('FREQMOD_ID', Numeric(10)),
+            Column('MODDATE', DateTime()),
+            Column('MODBY', String(50)),
+            Column('STD_ID', Numeric(10)))
+
+        alt_title_table = Table(
+            'ALT_TITLE', metadata,
+            Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True),
+            Column('ALTTITLE', String(350), primary_key=True))
+
+        citation_table = Table(
+            'CITATION', metadata,
+            Column('CITATIONID', Numeric(10), ForeignKey('METADATA.RESLOC'), primary_key=True),
+            Column('PUBYEAR', Date()),
+            Column('PUBTYP', String(30)),
+            Column('PUBTITLE', String(1000)),
+            Column('VOLUME', Numeric(10)),
+            Column('ISSUE', String(45)),
+            Column('PAGES', String(10)),
+            Column('AUTHORS', String(1000)),
+            Column('EDITORS', String(255)),
+            Column('PUBPLACE', String(200)),
+            Column('ORGREP', String(255)),
+            Column('ONLINERES', String(500)),
+            Column('ONLINERESNAM', String(500)),
+            Column('EDITION', String(25)),
+            Column('EDITIONDATE', Date()),
+            Column('PUBLISHER', String(255)),
+            Column('PUBSUBTYP', String(30)),
+            Column('CONTRACTCODE',String(100)),
+            Column('URL_ACCESSED', Date()))
+
         return metadata
 
     def setMapping(self):
@@ -148,6 +178,12 @@ class Session(Session):
 
         alt_title_table = schema.tables['ALT_TITLE']
         mapper(AlternativeTitle, alt_title_table)
+        
+        citation_table = schema.tables['CITATION']
+        mapper(ResourceLocator, citation_table, properties={
+                'url': citation_table.c.ONLINERES,
+                'name': citation_table.c.ONLINERESNAM
+                })
 
         metadata_table = schema.tables['METADATA']
         mapper(BODCMetadata, metadata_table, properties={
@@ -155,6 +191,7 @@ class Session(Session):
             'title': metadata_table.c.TITLE,
             'abstract': metadata_table.c.ABSTRACT,
             'resource_type': metadata_table.c.RESTYP_ID,
+            'resource_locators': relationship(ResourceLocator),
             'unique_id': composite(UniqueId, metadata_table.c.IDENTIFIER, metadata_table.c.CODESPACE),
             'bounding_box': composite(BoundingBox, metadata_table.c.WEST, metadata_table.c.SOUTH, metadata_table.c.EAST, metadata_table.c.NORTH),
             'alt_titles': relationship(AlternativeTitle, order_by=AlternativeTitle.ALTTITLE)

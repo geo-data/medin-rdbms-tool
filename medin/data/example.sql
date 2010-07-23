@@ -9,7 +9,7 @@ CREATE TABLE METADATA
   TITLE          VARCHAR2(500),
   ABSTRACT       VARCHAR2(4000),
   RESTYP_ID      NUMBER(10)                     NOT NULL,
-  RESLOC         VARCHAR2(200),
+  RESLOC         NUMBER(10),
   IDENTIFIER     VARCHAR2(255),
   CODESPACE      VARCHAR2(255)             DEFAULT 'http://www.bodc.ac.uk',
   SDSTYP_ID      NUMBER(10),
@@ -31,7 +31,8 @@ CREATE TABLE METADATA
   FREQMOD_ID     NUMBER(10),
   MODDATE        TIMESTAMP(6)                   DEFAULT SYSTIMESTAMP,
   MODBY          VARCHAR2(50),
-  STD_ID         NUMBER(10)
+  STD_ID         NUMBER(10),
+  FOREIGN KEY (RESLOC) REFERENCES CITATION (CITATIONID)
 );
 
 CREATE TABLE CITATION
@@ -107,7 +108,7 @@ Ernest Holt         July 1963                    Faroe Bank Channel        135
 RRS Discovery  March-April 1964         Indian Ocean                  140-160
 RRS Discovery  April                             Indian Ocean                  161-180
                           June-August 1964
-RRS Discovery  February-March 1969   NW Mediterranean        209-227', 5, NULL, 
+RRS Discovery  February-March 1969   NW Mediterranean        209-227', 5, 7, 
     'EDMED182', 'http://www.bodc.ac.uk/', NULL, -180, 180, 
     80, -80, NULL, NULL, NULL, 
     'urn:ogc:def:crs:EPSG:7030', '1955', '2010-01-11 13:14:19', '2010-01-27 15:21:28', '2010-06-17 09:37:33', 
@@ -135,7 +136,7 @@ Insert into METADATA
     TEMPEXEND, LINEAGE, SPARES, FREQMOD_ID, MODDATE, 
     MODBY, STD_ID)
  Values
-   (191, 'LORACOM Acoustic transmission data from the western Mediterranean 1994-1996', 'During both LORACOM experiments oceanographic measurements were made to define the mean state of the sound channel along the acoustic transmission path. For the 1996 experiment additional data on the day-to-day variability of the sound channel and internal waves was also gathered.  During the 1994 experiment shallow CTD and deep temp/depth casts were made at 2 stations.', 5, NULL, 
+   (191, 'LORACOM Acoustic transmission data from the western Mediterranean 1994-1996', 'During both LORACOM experiments oceanographic measurements were made to define the mean state of the sound channel along the acoustic transmission path. For the 1996 experiment additional data on the day-to-day variability of the sound channel and internal waves was also gathered.  During the 1994 experiment shallow CTD and deep temp/depth casts were made at 2 stations.', 5, 6, 
     'EDMED191', 'http://www.bodc.ac.uk/', NULL, 7, 8, 
     44, 43, NULL, NULL, NULL, 
     'urn:ogc:def:crs:EPSG:7030', '1994', '2010-01-11 13:35:38', '2010-02-25 13:53:05', '2010-06-17 09:37:33', 
@@ -164,4 +165,11 @@ Insert into CITATION
     NULL, NULL, NULL, NULL, NULL, 
     NULL, NULL, NULL, NULL);
 
+INSERT INTO CITATION
+       (CITATIONID, ONLINERES, ONLINERESNAM)
+       Values(6, 'www.google.co.uk', 'test');
+
+INSERT INTO CITATION
+       (CITATIONID, ONLINERES, ONLINERESNAM)
+       Values(7, 'www.geodata.soton.ac.uk', 'test2');
 COMMIT;

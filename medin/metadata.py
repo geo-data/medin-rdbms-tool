@@ -25,6 +25,9 @@ class Metadata(object):
     # Element 4
     resource_type = None
 
+    # Element 5
+    resource_locators = None
+
     # Element 6
     unique_id = None
 
@@ -45,6 +48,27 @@ class Metadata(object):
 
     def __init__(self):
         self.alt_titles = []
+        self.resource_locators = []
+
+class ResourceLocator(object):
+    """
+    Element 5
+    """
+    url = None
+    name = None
+
+    def __init__(self, url, name=None):
+        self.url = url
+        self.name = name
+
+    def __repr__(self):
+        return "<%s('%s')>" % (self.__class__.__name__, str(self))
+
+    def __str__(self):
+        if self.name:
+            return self.name + self.url
+        return self.url
+
 
 class UniqueId(object):
     """
@@ -133,6 +157,7 @@ class XMLBuilder(object):
 
         self.root.addChild(self.identificationInfo())
         self.root.addChild(self.hierarchyLevel())
+        self.root.addChild(self.distributionInfo())
         self.root.addChild(self.dateStamp())
         self.root.addChild(self.metadataStandardName())
         self.root.addChild(self.metadataStandardVersion())
@@ -159,8 +184,25 @@ class XMLBuilder(object):
 
     def hierarchyLevel(self):
         hierarchyLevel = self.doc.newDocNode(self.ns['gmd'], 'hierarchyLevel', None)
-        hierarchyLevel.addChild(self.MD_ScopeCode())
+        hierarchyLevel.addChild(self.resourceType())
         return hierarchyLevel
+
+    def distributionInfo(self):
+        distributionInfo = self.doc.newDocNode(self.ns['gmd'], 'distributionInfo', None)
+        MD_Distribution = distributionInfo.newChild(None, 'MD_Distribution', None)
+        MD_Distribution.addChild(self.doc.newDocComment(
+                "ISO 19115 Constraints require this element!"))
+        distributionFormat = MD_Distribution.newChild(None, 'distributionFormat', None)
+        distributionFormat.setNsProp(self.ns['gco'], 'nilReason', 'inapplicable')
+        if not self.m.resource_locators:
+            return distributionInfo
+        transferOptions = MD_Distribution.newChild(None, 'transferOptions', None)
+        MD_DigitalTransferOptions = transferOptions.newChild(
+            None, 'MD_DigitalTransferOptions', None)
+        onLine = MD_DigitalTransferOptions.newChild(None, 'onLine', None)
+        for node in self.resourceLocators():
+            onLine.addChild(node)
+        return distributionInfo
 
     def title(self):
         """
@@ -189,17 +231,32 @@ class XMLBuilder(object):
         characterString = abstract.newChild(self.ns['gco'], 'CharacterString', str(self.m.abstract))
         return abstract
 
-    def MD_ScopeCode(self):
+    def resourceType(self):
         """
         Element 4 to XML
         (must be 5 [dataset], 6 [series], or 14 [service])
         """
-        term = self.m.vocabs.getResourceTypeFromCode(self.m.resource_type)
-        print str(term.term)
-        MD_ScopeCode = self.doc.newDocNode(self.ns['gmd'], 'MD_ScopeCode', term.term)
+        term = self.m.vocabs.getResourceTypeFromCode(self.m.resource_type).term
+        MD_ScopeCode = self.doc.newDocNode(self.ns['gmd'], 'MD_ScopeCode', term)
         MD_ScopeCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#MD_ScopeCode')
-        MD_ScopeCode.setProp('codeListValue', term.term)
+        MD_ScopeCode.setProp('codeListValue', term)
         return MD_ScopeCode
+
+    def resourceLocators(self):
+        """
+        Element 5 to XML
+        Not known how to present resource's name, or how to show >1 locator.
+        """
+        resource_locators = []
+        for rl in self.m.resource_locators:        
+            CI_OnlineResource = self.doc.newDocNode(self.ns['gmd'], 'CI_OnlineResource', None)
+            linkage = CI_OnlineResource.newChild(None, 'linkage', None)
+            URL = linkage.newChild(None, 'URL', rl.url)
+            # query: what's the XML spec for providing link's name??
+            if rl.name:
+                name = linkage.newChild(None, 'name', rl.name)
+            resource_locators.append(CI_OnlineResource)
+        return resource_locators
 
     def identifier(self):
         """
@@ -216,6 +273,9 @@ class XMLBuilder(object):
         return identifier
 
     def extent(self):
+        """
+        Element 12
+        """
         bbox = self.m.bounding_box
         extent = self.doc.newDocNode(self.ns['gmd'], 'extent', None)
         EX_Extent = extent.newChild(None, 'EX_Extent', None)
