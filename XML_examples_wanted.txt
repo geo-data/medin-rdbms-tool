@@ -1,0 +1,4 @@
+Element 5:
+	no resource locators
+	>1 resource locators
+	a resource locator with a locator name sub element.
