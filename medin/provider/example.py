@@ -56,6 +56,23 @@ class UniqueId(metadata.UniqueId):
         self.id = id
         self.codespace = codespace
 
+class CoupledResource(object):
+    """
+    Element 7
+    """
+    METADATAID = None
+    resource = None
+
+class ResourceLanguage(object):
+    """
+    Element 8
+    """
+    language = None
+    code = None
+    def __init__(self, code, language):
+        self.language = language
+        self.code = code
+
 class BoundingBox(metadata.BoundingBox):
     """
     Element 12
@@ -81,18 +98,8 @@ class Session(Session):
     This provides an interface to obtaining metadata entries by ID as
     well as iterating over the entire metadata collection.
     """
-    engine = None
-
-    def __init__(self, connstr, vocabs):
-        from sqlalchemy.orm import sessionmaker
-        super(Session, self).__init__(connstr, vocabs)
-        engine = self.getEngine(connstr)
-        self.setMapping()
-        Sess = sessionmaker(bind=engine)
-        self.sess = Sess()
-
-    def getEngine(self, connstr):
-         # we ignore the connection string
+    def getEngine(self):
+         # we ignore the connection string (self.connstr)
         if self.engine:
             return self.engine
         from sqlalchemy import create_engine
@@ -166,6 +173,11 @@ class Session(Session):
             Column('CONTRACTCODE',String(100)),
             Column('URL_ACCESSED', Date()))
 
+        coupled_res_table = Table(
+            'COUPLED_RES', metadata,
+            Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True),
+            Column('COUPLRES', String(200), primary_key=True))
+            
         return metadata
 
     def setMapping(self):
@@ -185,14 +197,20 @@ class Session(Session):
                 'name': citation_table.c.ONLINERESNAM
                 })
 
+        coupled_res_table = schema.tables['COUPLED_RES']
+        mapper(CoupledResource, coupled_res_table, properties={
+                'resource': coupled_res_table.c.COUPLRES
+                })
+
         metadata_table = schema.tables['METADATA']
         mapper(BODCMetadata, metadata_table, properties={
             'date': metadata_table.c.MODDATE,
             'title': metadata_table.c.TITLE,
             'abstract': metadata_table.c.ABSTRACT,
             'resource_type': metadata_table.c.RESTYP_ID,
-            'resource_locators': relationship(ResourceLocator),
+            'resource_locators': relationship(ResourceLocator), # TODO: update, see Schema Changes, medin_schema_doc_2_3_3_11mar10.doc
             'unique_id': composite(UniqueId, metadata_table.c.IDENTIFIER, metadata_table.c.CODESPACE),
+            'coupled_resources': relationship(CoupledResource),
             'bounding_box': composite(BoundingBox, metadata_table.c.WEST, metadata_table.c.SOUTH, metadata_table.c.EAST, metadata_table.c.NORTH),
             'alt_titles': relationship(AlternativeTitle, order_by=AlternativeTitle.ALTTITLE)
         })
@@ -205,6 +223,8 @@ class Session(Session):
         try:
             metadata = self.sess.query(BODCMetadata).filter(BODCMetadata.unique_id == id).one()
             metadata.vocabs = self.vocabs
+            # hard-coded values...
+            metadata.resource_languages = [ResourceLanguage('eng', 'English')]
             return metadata
         except NoResultFound:
             return None
@@ -213,4 +233,6 @@ class Session(Session):
         # iterate over all metadata instances
         for metadata in self.sess.query(BODCMetadata):
             metadata.vocabs = self.vocabs
+            # hard-coded values...
+            metadata.resource_languages = [ResourceLanguage('eng', 'English')]
             yield metadata
