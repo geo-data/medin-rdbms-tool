@@ -1,12 +1,9 @@
-#!/bin/env python
+#!/usr/bin/env python2
 
 # ensure we're using UTF-8
 import sys
 sys = reload(sys)
 sys.setdefaultencoding('utf-8')
-
-from optparse import OptionParser
-import os
 
 class Version(object):
     """Representation of program version information"""
@@ -16,6 +13,7 @@ class Version(object):
         self.minor = minor
         self.patch = patch
 
+    @classmethod
     def parse(cls, version_str):
         """Class method to parse a version string into a Version object"""
         import re
@@ -25,7 +23,6 @@ class Version(object):
             raise ValueError('The version string could not be parsed')
 
         return cls(*[int(g) for g in m.groups()])
-    parse = classmethod(parse)
 
     def __cmp__(self, other):
         """Compare one version with another"""
@@ -39,10 +36,16 @@ class Version(object):
     def __str__(self):
         return '%d.%d.%d' % (self.major, self.minor, self.patch)
 
+def warn(msg):
+    """Output a message to standard error"""
+
+    sys.stderr.write("%s\n" % msg)
+    log(msg)
+    
 def die(msg):
     """End the program with a message"""
 
-    sys.stderr.write("%s\n" % msg)
+    warn(msg)
     sys.exit(1)
 
 def get_version(config_cmd):
@@ -93,7 +96,87 @@ def check_environment():
     if version_cur < version_min:
         die('Your version of libxslt is %s, it needs to be at least %s' % (version_cur, version_min))
 
+class Output(object):
+
+    def __init__(self, validate=False):
+        self.validate = validate
+
+    def processMetadata(self, metadata):
+        """
+        Process an individual metadata instance
+        """
+        from cStringIO import StringIO
+        import libxml2
+        from medin import log
+        from medin.metadata import XMLBuilder
+        from medin.validate import validate, ValidationError
+
+        # transform the metadata to XML
+        builder = XMLBuilder(metadata)
+        doc = builder.build()
+
+        # try and validate the xml
+        if self.validate:
+            log('Performing validation')
+            try:
+                validate(doc)
+            except ValidationError, e:
+                warn('The document is not valid: %s' % e.args[0])
+                return None
+            except Exception, e:
+                die('FATAL ERROR: ' + str(e))
+            else:
+                log("The document is valid")
+
+        # output the document
+        f = StringIO()
+        buf = libxml2.createOutputBuffer(f, 'utf-8')
+        doc.saveFormatFileTo(buf, 'utf-8', True)
+        doc.freeDoc()                       # clean up
+
+        return f.getvalue().strip()
+
+    def write(self, fh, iter_metadata):
+        for metadata in iter_metadata:
+            xml = self.processMetadata(metadata)
+            if not xml:
+                continue
+            fh.write(xml)
+            fh.write("\n")
+
+class MIMEOutput(Output):
+
+    def __init__(self, *args, **kwargs):
+        from uuid import uuid4
+        self.uid = uuid4().hex  # get an unique identifer
+
+        super(MIMEOutput, self).__init__(*args, **kwargs)
+
+    def write(self, fh, iter_metadata):
+        from medin import __version__
+        fh.write("""MIME-Version: 1.0
+Content-Type: multipart/mixed; charset=UTF-8; boundary="%s"
+
+MEDIN XML Metadata created by MEDIN Metadata Generator version %s\n""" % (self.uid, str(__version__)))
+
+        for metadata in iter_metadata:
+            xml = self.processMetadata(metadata)
+            if not xml:
+                continue
+            filename = metadata.unique_id.id + '.xml'
+            fh.write("""--%s
+Content-Type: text/xml; charset=UTF-8;
+Content-Disposition: inline; filename="%s";
+
+""" % (self.uid, filename))
+            fh.write(xml)
+            fh.write("\n")
+
+        fh.write("--%s--\n" % self.uid)  # the final boundary
+
 def main():
+    from optparse import OptionParser
+
     # parse out the command options
     usage = """usage: %prog [OPTION]... [PROVIDER] [CONNSTRING]
 
@@ -109,8 +192,10 @@ def main():
                       help="Update the locally stored vocabularies from the internet")
     parser.add_option("-d", '--debug', action="store_true",
                       help="Enable debugging output")
-    parser.add_option("-i", '--metadata-id',
-                      help="Output a specific metadata ID")
+    parser.add_option("-i", '--metadata-id', action="append",
+                      help="Output a specific metadata ID. This option can be specified multiple times")
+    parser.add_option("-n", '--no-mime', action="store_true",
+                      help="Do not encapsulate the XML output in MIME format")
     parser.add_option("-v", '--validate', action="store_true",
                       help="""Enable validation of output XML. A three step validation is performed:
 1. Validate against the ISO TC 211 schema.
@@ -127,47 +212,12 @@ requirements.""")
 
     check_environment()
 
-    # standard library and third party imports
-    from cStringIO import StringIO
-    import libxml2
-
-    def process_metadata(metadata):
-        """
-        Process an individual metadata instance
-        """
-        # transform the metadata to XML
-        builder = XMLBuilder(metadata)
-        doc = builder.build()
-
-        # try and validate the xml
-        if options.validate:
-            log('Performing validation')
-            try:
-                validate(doc)
-            except ValidationError, e:
-                die(e.args[0])
-            except Exception, e:
-                die('FATAL ERROR: ' + str(e))
-            else:
-                log("The document is valid")
-
-        # output the document
-        #print doc
-        f = StringIO()
-        buf = libxml2.createOutputBuffer(f, 'utf-8')
-        doc.saveFormatFileTo(buf, 'utf-8', True)
-        doc.freeDoc()                       # clean up
-
-        print f.getvalue(),
-
     # try and load the medin modules
     try:
         import medin
         from medin import log
         import medin.provider
-        from medin.validate import validate, ValidationError
         import medin.vocabulary
-        from medin.metadata import XMLBuilder
     except ImportError:
         die('The medin module could not be found. Please ensure it is in your python module search path.')
 
@@ -196,18 +246,37 @@ requirements.""")
     # retrieve the metadata
     provider = provider_module.Session(connstr, vocabs)
     if options.metadata_id:
-        # get a specific metadata id
-        log('Getting metadata id %s' % options.metadata_id)
-        metadata = provider.getMetadataById(options.metadata_id)
-        if not metadata:
-            die('A metadata entry with the following id does not exist: %s' % options.metadata_id)
-        process_metadata(metadata)
+        ids = set(options.metadata_id)
+
+        def metadata_generator():
+            for metadata_id in ids:
+                # get a specific metadata id
+                log('Getting metadata id %s' % metadata_id)
+                metadata = provider.getMetadataById(metadata_id)
+                if not metadata:
+                    die('A metadata entry with the following id does not exist: %s' % metadata_id)
+                yield metadata
     else:
-        # get all metadata entries
         log('Retrieving all metadata entries')
-        for metadata in provider:
-            process_metadata(metadata)
-            print
+
+        def metadata_generator():
+            for metadata in provider:
+                yield metadata
+
+    # output the metadata entries
+    if options.no_mime:
+        cls = Output
+    else:
+        cls = MIMEOutput
+
+    output = cls(options.validate)
+    output.write(sys.stdout, metadata_generator())
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except IOError, e:
+        if e.errno == 32:
+            pass                # it's a broken pipe
+        else:
+            raise
