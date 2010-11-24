@@ -40,7 +40,10 @@ def warn(msg):
     """Output a message to standard error"""
 
     sys.stderr.write("%s\n" % msg)
-    log(msg)
+    try:
+        log(msg)
+    except NameError:
+        pass                    # for when the medin module can't be imported
     
 def die(msg):
     """End the program with a message"""
@@ -177,6 +180,15 @@ Content-Disposition: inline; filename="%s";
 def main():
     from optparse import OptionParser
 
+    # try and load the medin modules
+    try:
+        import medin
+        from medin import log, __version__
+        import medin.provider
+        import medin.vocabulary
+    except ImportError:
+        die('The medin module could not be found. Please ensure it is in your python module search path.')
+    
     # parse out the command options
     usage = """usage: %prog [OPTION]... [PROVIDER] [CONNSTRING]
 
@@ -185,7 +197,7 @@ def main():
     PROVIDER is the provider name e.g. 'example' and CONNSTRING is the
     connection parameter string for accessing the database."""
 
-    parser = OptionParser(usage=usage)
+    parser = OptionParser(usage=usage, version="%%prog %s" % str(__version__))
 
     # add the command line options
     parser.add_option("-u", '--update-vocab', action="store_true",
@@ -211,15 +223,6 @@ requirements.""")
         parser.error("incorrect number of arguments")
 
     check_environment()
-
-    # try and load the medin modules
-    try:
-        import medin
-        from medin import log
-        import medin.provider
-        import medin.vocabulary
-    except ImportError:
-        die('The medin module could not be found. Please ensure it is in your python module search path.')
 
     # turn on debugging
     if options.debug:
