@@ -139,15 +139,25 @@ class Output(object):
 
         return f.getvalue().strip()
 
-    def write(self, fh, iter_metadata):
+    def write(self, iter_metadata):
+        raise NotImplementedError('This method must be overridden')
+
+class FileOutput(Output):
+
+    def __init__(self, file, *args, **kwargs):
+        self.fh = file
+
+        super(FileOutput, self).__init__(*args, **kwargs)
+
+    def write(self, iter_metadata):
         for metadata in iter_metadata:
             xml = self.processMetadata(metadata)
             if not xml:
                 continue
-            fh.write(xml)
-            fh.write("\n")
+            self.fh.write(xml)
+            self.fh.write("\n")
 
-class MIMEOutput(Output):
+class MIMEOutput(FileOutput):
 
     def __init__(self, *args, **kwargs):
         from uuid import uuid4
@@ -155,9 +165,9 @@ class MIMEOutput(Output):
 
         super(MIMEOutput, self).__init__(*args, **kwargs)
 
-    def write(self, fh, iter_metadata):
+    def write(self, iter_metadata):
         from medin import __version__
-        fh.write("""MIME-Version: 1.0
+        self.fh.write("""MIME-Version: 1.0
 Content-Type: multipart/mixed; charset=UTF-8; boundary="%s"
 
 MEDIN XML Metadata created by MEDIN Metadata Generator version %s\n""" % (self.uid, str(__version__)))
@@ -167,15 +177,41 @@ MEDIN XML Metadata created by MEDIN Metadata Generator version %s\n""" % (self.u
             if not xml:
                 continue
             filename = metadata.unique_id.id + '.xml'
-            fh.write("""--%s
+            self.fh.write("""--%s
 Content-Type: text/xml; charset=UTF-8;
 Content-Disposition: inline; filename="%s";
 
 """ % (self.uid, filename))
-            fh.write(xml)
-            fh.write("\n")
+            self.fh.write(xml)
+            self.fh.write("\n")
 
-        fh.write("--%s--\n" % self.uid)  # the final boundary
+        self.fh.write("--%s--\n" % self.uid)  # the final boundary
+
+class DirOutput(Output):
+
+    def __init__(self, directory=None, *args, **kwargs):
+        super(DirOutput, self).__init__(*args, **kwargs)
+
+        from os.path import isdir, curdir, abspath
+        if not directory:
+            directory = curdir
+        self.directory = abspath(directory)
+
+    def write(self, iter_metadata):
+        from os.path import join
+        for metadata in iter_metadata:
+            xml = self.processMetadata(metadata)
+            if not xml:
+                continue
+            filename = metadata.unique_id.id + '.xml'
+            path = join(self.directory, filename)
+            try:
+                fh = open(path, 'w')
+                fh.write(xml)
+            except IOError, e:
+                die('Could not write metadata to file: %s: %s' % (e.strerror, e.filename))
+            else:
+                fh.close()
 
 def main():
     from optparse import OptionParser
@@ -207,7 +243,9 @@ def main():
     parser.add_option("-i", '--metadata-id', action="append",
                       help="Output a specific metadata ID. This option can be specified multiple times")
     parser.add_option("-n", '--no-mime', action="store_true",
-                      help="Do not encapsulate the XML output in MIME format")
+                      help="Do not encapsulate the XML output in MIME format. This is only useful when --destination is not specified.")
+    parser.add_option("-o", '--destination',
+                      help="Output the XML to the specified DIRECTORY. Existing files are over-written.")
     parser.add_option("-v", '--validate', action="store_true",
                       help="""Enable validation of output XML. A three step validation is performed:
 1. Validate against the ISO TC 211 schema.
@@ -267,13 +305,14 @@ requirements.""")
                 yield metadata
 
     # output the metadata entries
-    if options.no_mime:
-        cls = Output
+    if options.destination:
+        output = DirOutput(options.destination, options.validate)
+    elif options.no_mime:
+        output = FileOutput(sys.stdout, options.validate)
     else:
-        cls = MIMEOutput
+        output = MIMEOutput(sys.stdout, options.validate)
 
-    output = cls(options.validate)
-    output.write(sys.stdout, metadata_generator())
+    output.write(metadata_generator())
 
 if __name__ == '__main__':
     try:
