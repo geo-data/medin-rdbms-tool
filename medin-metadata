@@ -5,37 +5,6 @@ import sys
 sys = reload(sys)
 sys.setdefaultencoding('utf-8')
 
-class Version(object):
-    """Representation of program version information"""
-
-    def __init__(self, major, minor, patch):
-        self.major = major
-        self.minor = minor
-        self.patch = patch
-
-    @classmethod
-    def parse(cls, version_str):
-        """Class method to parse a version string into a Version object"""
-        import re
-
-        m = re.search('(\d+)\.(\d+)\.(\d+)', version_str)
-        if not m:
-            raise ValueError('The version string could not be parsed')
-
-        return cls(*[int(g) for g in m.groups()])
-
-    def __cmp__(self, other):
-        """Compare one version with another"""
-        
-        res = cmp(self.major, other.major)
-        if res != 0: return res
-        res = cmp(self.minor, other.minor)
-        if res != 0: return res
-        return cmp(self.patch, other.patch)
-
-    def __str__(self):
-        return '%d.%d.%d' % (self.major, self.minor, self.patch)
-
 def warn(msg):
     """Output a message to standard error"""
 
@@ -50,56 +19,11 @@ def die(msg):
 
     warn(msg)
     sys.exit(1)
-
-def get_version(config_cmd):
-    """Try and retrieve a program version"""
-
-    import subprocess
-
-    try:
-        p = subprocess.Popen([config_cmd, '--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE);
-    except OSError, e:
-        die("There was an error retrieving version information using %s: %s" % (config_cmd, str(e)))
-    out, err = p.communicate()
-    if err and p.returncode != 0:
-        raise die("There was an error retrieving version information using %s: %s" % (config_cmd, err))
-
-    try:
-        return Version.parse(out)
-    except ValueError:
-        die('The version of %s could not be determined' % config_cmd)
-
-def check_environment():
-    """Check whether the system supports the program requirements"""
-
-    # ensure we've got libxml2 and libxslt on the system
-    try:
-        import libxml2
-    except ImportError:
-        die('The libxml2 python module needs to be installed. See http://xmlsoft.org/python.html')
-
-    try:
-        import libxslt
-    except ImportError:
-        die('The libxslt python module needs to be installed. See http://xmlsoft.org/XSLT/python.html')
-
-    # check we've got minimum python support
-    if Version(*sys.version_info[:3]) < Version(2, 6, 0):
-        die('Python 2.6 or greater is required')
-
-    # check we've got minimum libxml2 support
-    version_cur = get_version('xml2-config')
-    version_min = Version(2, 6, 26)
-    if version_cur < version_min:
-        die('Your version of libxml2 is %s, it needs to be at least %s' % (version_cur, version_min))
-
-    # check we've got minimum libxslt support
-    version_cur = get_version('xslt-config')
-    version_min = Version(1, 1, 17)
-    if version_cur < version_min:
-        die('Your version of libxslt is %s, it needs to be at least %s' % (version_cur, version_min))
-
+    
 class Output(object):
+    """
+    Abstract base class for outputting metadata as XML
+    """
 
     def __init__(self, validate=False):
         self.validate = validate
@@ -143,6 +67,9 @@ class Output(object):
         raise NotImplementedError('This method must be overridden')
 
 class FileOutput(Output):
+    """
+    Output metadata as XML to a file handle
+    """
 
     def __init__(self, file, *args, **kwargs):
         self.fh = file
@@ -158,6 +85,9 @@ class FileOutput(Output):
             self.fh.write("\n")
 
 class MIMEOutput(FileOutput):
+    """
+    Output metadata as XML wrapped in MIME format
+    """
 
     def __init__(self, *args, **kwargs):
         from uuid import uuid4
@@ -188,6 +118,9 @@ Content-Disposition: inline; filename="%s";
         self.fh.write("--%s--\n" % self.uid)  # the final boundary
 
 class DirOutput(Output):
+    """
+    Output metadata as XML to a directory
+    """
 
     def __init__(self, directory=None, *args, **kwargs):
         super(DirOutput, self).__init__(*args, **kwargs)
@@ -214,14 +147,18 @@ class DirOutput(Output):
                 fh.close()
 
 def main():
+    """
+    The main program
+    """
+
     from optparse import OptionParser
 
     # try and load the medin modules
     try:
         import medin
         from medin import log, __version__
+        from medin.util import check_environment
         import medin.schema
-        import medin.vocabulary
     except ImportError:
         die('The medin module could not be found. Please ensure it is in your python module search path.')
     
@@ -283,7 +220,10 @@ requirements.""")
             parser.error("incorrect number of arguments")
         schema_name = connstr = None
 
-    check_environment()
+    try:
+        check_environment()
+    except EnvironmentError, e:
+        die(str(e))
 
     # turn on debugging
     if options.debug:
@@ -303,6 +243,7 @@ requirements.""")
         return
 
     # start a vocabulary session
+    import medin.vocabulary
     vocabs = medin.vocabulary.Session()
 
     # update the vocabularies
