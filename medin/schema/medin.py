@@ -745,6 +745,7 @@ Format) translated from codes to text using the thesaurus."""))
         resparty_res_table = schema.tables['RESPARTY_RES']
         res_party_join = join(res_party_table, resparty_res_table)
         mapper(ResponsibleParty, res_party_join, properties={
+            'RESPARTYID': [res_party_table.c.RESPARTYID, resparty_res_table.c.RESPARTYID],
             'ROLEID': resparty_res_table.c.ROLEID,
             'FIRSTNAME': res_party_table.c.FIRSTNAME,
             'SURNAME': res_party_table.c.SURNAME,
