@@ -220,18 +220,37 @@ def main():
     try:
         import medin
         from medin import log, __version__
-        import medin.provider
+        import medin.schema
         import medin.vocabulary
     except ImportError:
         die('The medin module could not be found. Please ensure it is in your python module search path.')
     
     # parse out the command options
-    usage = """usage: %prog [OPTION]... [PROVIDER] [CONNSTRING]
+    usage = """usage: %prog [OPTION]... [SCHEMA] [CONNSTRING]
 
-    Extract Metadata from a data provider database as MEDIN XML.
+  Extract metadata from a data provider database as MEDIN XML.
 
-    PROVIDER is the provider name e.g. 'example' and CONNSTRING is the
-    connection parameter string for accessing the database."""
+  SCHEMA is the name of the database schema in use by the provider
+  database e.g. 'medin'.
+
+  CONNSTRING is the connection parameter string for accessing the
+  database. It should be in the following format:
+
+  dialect://user:password@host/dbname
+
+  where dialect is the name of the database system e.g
+
+  oracle://me:mypass@myhost/mydb
+
+  details of supported dialects are available at:
+  http://www.sqlalchemy.org/docs/core/engines.html#supported-dbapis
+
+  The CONNSTRING 'example' is a special argument that connects to a
+  bundled sqlite database. This is a reference implementation of the
+  medin schema based on the BODC EDMED oracle database. It can be
+  called as follows:
+
+  %prog medin example"""
 
     parser = OptionParser(usage=usage, version="%%prog %s" % str(__version__))
 
@@ -241,7 +260,7 @@ def main():
     parser.add_option("-d", '--debug', action="store_true",
                       help="Enable debugging output")
     parser.add_option("-i", '--metadata-id', action="append",
-                      help="Output a specific metadata ID. This option can be specified multiple times")
+                      help="Output a specific resource ID. The ID must be the fully qualified unique resource identifier (Element 6 e.g. http://www.bodc.ac.uk/EDMED587). This option can be specified multiple times.")
     parser.add_option("-n", '--no-mime', action="store_true",
                       help="Do not encapsulate the XML output in MIME format. This is only useful when --destination is not specified.")
     parser.add_option("-o", '--destination',
@@ -256,11 +275,11 @@ requirements.""")
 
     (options, args) = parser.parse_args()
     try:
-        provider_name, connstr = args
+        schema_name, connstr = args
     except ValueError:
         if not options.update_vocab:
             parser.error("incorrect number of arguments")
-        provider_name = connstr = None
+        schema_name = connstr = None
 
     check_environment()
 
@@ -278,20 +297,35 @@ requirements.""")
         log("Updating vocabularies from online sources")
         vocabs.update()    # update the online vocabs
 
-    if not provider_name:
+    if not schema_name:
         # the user only asked for the vocabs to be updated
         return
 
-    # try and load the provider plugin
-    log('Attempting to load provider %s' % provider_name)
+    # create the database engine
+    from sqlalchemy import create_engine
+    from sqlalchemy.exc import ArgumentError
+    engine = None
+    if connstr == 'example':
+        from os.path import join, dirname, abspath
+        
+        dbname = abspath(join(dirname(medin.__file__),'data','example.sqlite'))
+        connstr = 'sqlite:///'+dbname
+
+    try:
+        engine = create_engine(connstr, echo=medin.DEBUG)
+    except ArgumentError, e:
+        die('Bad CONNSTRING: %s' % str(e))
+
+    # try and load the schema plugin
+    log('Attempting to load schema %s' % schema_name)
     import imp
     try:
-        provider_module = imp.load_module(provider_name, *imp.find_module(provider_name, medin.provider.__path__))
+        schema_module = imp.load_module(schema_name, *imp.find_module(schema_name, medin.schema.__path__))
     except ImportError:
-        die('The provider is not supported: %s' % provider_name)
+        die('The schema is not supported: %s' % schema_name)
 
     # retrieve the metadata
-    provider = provider_module.Session(connstr, vocabs)
+    provider = schema_module.Session(engine, vocabs)
     if options.metadata_id:
         ids = set(options.metadata_id)
 
@@ -318,7 +352,11 @@ requirements.""")
     else:
         output = MIMEOutput(sys.stdout, options.validate)
 
-    output.write(metadata_generator())
+    from sqlalchemy.exc import DatabaseError
+    try:
+        output.write(metadata_generator())
+    except DatabaseError, e:
+        die('Database error: %s' % e.message)
 
 if __name__ == '__main__':
     try:

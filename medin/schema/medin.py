@@ -1,28 +1,35 @@
 """
-Example Metadata Provider
+MEDIN Metadata Schema
 
-This provides an example of how to add a metadata provider. It is
-based on the BODC metadata schema, which it implements in a sqlite
-database. This database can be found in data/example.sqlite
+This provides the reference implementation for the MEDIN schema. This
+schema is detailed at:
 
-As with any provider, the primary purpose of this module is to create
+http://www.oceannet.org/marine_data_standards/medin_approved_standards/documents/medin_usermanaged_tables_user.doc
+
+The schema can be used with any sqlalchemy supported database engine
+as long as the underlying database schema conforms. An example of a
+conforming schema is bundled in a sqlite database which can be found
+at medin/data/example.sqlite
+
+As with any schema, the primary purpose of this module is to create
 a sqlalchemy mapping from the database schema to the medin.Metadata
 class.
 """
 
-from medin.provider import Session
+from medin.schema import Session
 import medin.metadata as metadata
 from medin.vocabulary import Session as Vocabulary
 from sqlalchemy.orm import reconstructor
 import datetime
 
-# The Example metadata classes
-class ExampleMetadata(metadata.Metadata):
+# The metadata classes
+class Metadata(metadata.Metadata):
     """
     A class that is used for the sqlalchemy mapping
 
-    This is used instead of the base Metadata class to avoid mapping
-    clashes if more than one provider were to be used.
+    This augments the base Metadata class, encapsulating differences
+    in the MEDIN schema behind the interface defined by the base
+    class.
     """
     RESTYP_ID = _RESTYP_ID = _resource_type = None
     SDSTYP_ID = _SDSTYP_ID = _service_type = None
@@ -32,7 +39,7 @@ class ExampleMetadata(metadata.Metadata):
     terms = None
     
     def __init__(self):
-        super(ExampleMetadata, self).__init__(self)
+        super(Metadata, self).__init__(self)
         self.vocabs = Vocabulary()
         self.terms = []
     
@@ -460,23 +467,11 @@ class ResponsibleParty(metadata.ResponsibleParty):
 # The concrete provider Session class
 class Session(Session):
     """
-    A concrete implementation of the Provider class
+    A concrete implementation of the schema session class
 
     This provides an interface to obtaining metadata entries by ID as
     well as iterating over the entire metadata collection.
     """
-
-    def getEngine(self):
-        if self.engine:
-            return self.engine
-
-        from sqlalchemy import create_engine
-        from os.path import join, dirname, abspath
-        import medin
-
-        dbname = abspath(join(dirname(medin.__file__),'data','example.sqlite'))
-        self.engine = create_engine('sqlite:///'+dbname, echo=medin.DEBUG)
-        return self.engine
 
     def getSchema(self):
         """
@@ -501,7 +496,7 @@ class Session(Session):
                    doc='Pointer into the ONLINERS field in the CITATION table used to populate MEDIN Element 5.1 (Resource Locator url) concatenate with PUBTITLE field in the CITATION table used to populate MEDIN Element 5.2 (Resource Locator Name).'),
             Column('IDENTIFIER', String(255),
                    doc='Used to populate MEDIN Element 6.1 (Unique Resource Identifier Code)'),
-            Column('CODESPACE', String(255), default='http://www.bodc.ac.uk',
+            Column('CODESPACE', String(255),
                    doc='Used to populate MEDIN Element 6.2 (Unique Resource Identifier Code Space)'),
             Column('SDSTYP_ID', Numeric(10),
                    doc='Used to populate MEDIN Element 10  (Spatial Data Service Type) after translation using ISOCODEID from Tool-managed table ISO_CODE which have a THESAURUSID = 1'),
@@ -759,7 +754,7 @@ Format) translated from codes to text using the thesaurus."""))
             })
         
         metadata_table = schema.tables['METADATA']
-        mapper(ExampleMetadata, metadata_table, properties={
+        mapper(Metadata, metadata_table, properties={
             'title': metadata_table.c.TITLE,
             'alt_titles': relationship(AlternativeTitle, order_by=AlternativeTitle.ALTTITLE),
             'abstract': metadata_table.c.ABSTRACT,
@@ -804,13 +799,13 @@ Format) translated from codes to text using the thesaurus."""))
             'date': metadata_table.c.MODDATE
         })
 
-    def getMetadataById(self, code):
+    def getMetadataById(self, qualified_id):
         # return a metadata instance
         from sqlalchemy.orm.exc import NoResultFound
         
-        id = UniqueId(code, 'http://www.bodc.ac.uk/')
+        id = UniqueId.FromQualifiedId(qualified_id)
         try:
-            metadata = self.sess.query(ExampleMetadata).filter(ExampleMetadata.unique_id == id).one()
+            metadata = self.sess.query(Metadata).filter(Metadata.unique_id == id).one()
             metadata.vocabs = self.vocabs
             return metadata
         except NoResultFound:
@@ -818,6 +813,6 @@ Format) translated from codes to text using the thesaurus."""))
 
     def __iter__(self):
         # iterate over all metadata instances
-        for metadata in self.sess.query(ExampleMetadata):
+        for metadata in self.sess.query(Metadata):
             metadata.vocabs = self.vocabs
             yield metadata

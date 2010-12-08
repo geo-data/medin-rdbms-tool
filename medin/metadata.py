@@ -173,6 +173,22 @@ class UniqueId(object):
             return self.codespace + self.id
         return self.id
 
+    @classmethod
+    def FromQualifiedId(cls, qualified_id):
+        """
+        Create an UniqueId object from a fully qualified identifier
+        """
+
+        split = qualified_id.rsplit('/', 1)
+        try:
+            codespace, id = split
+            codespace += '/'
+        except ValueError:
+            codespace = None
+            id = split[0]
+
+        return cls(id, codespace)
+
 class ResourceLanguage(object):
     """
     Element 8
