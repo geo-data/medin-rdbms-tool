@@ -216,7 +216,7 @@ requirements.""")
     try:
         schema_name, connstr = args
     except ValueError:
-        if not options.update_vocab:
+        if not options.update_vocab and not options.list_schemas:
             parser.error("incorrect number of arguments")
         schema_name = connstr = None
 
