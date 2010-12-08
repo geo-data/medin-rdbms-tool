@@ -39,6 +39,7 @@ class Thesaurus(Base):
     terms = relationship('Term',
                          order_by='Term.term',
                          cascade="all, delete, delete-orphan",
+                         backref='thesaurus',
                          single_parent=True)
 
     def __init__(self, id, name):
@@ -50,13 +51,16 @@ class Thesaurus(Base):
             self.__class__.__name__, self.id, self.name
             )
 
+    def __hash__(self):
+        return self.id
+
 class Term(Base):
     __tablename__ = 'terms'
 
     term = Column(String, primary_key=True)
     thesaurus_id = Column(Integer, ForeignKey('thesauri.id', ondelete='CASCADE'), primary_key=True)
     definition = Column(String)
-    code = Column(Integer)
+    code = Column(String)
 
     __mapper_args__ = {'polymorphic_on': thesaurus_id}
 
@@ -68,6 +72,9 @@ class Term(Base):
     def __repr__(self):
         return "<%s('%s')>" % (self.__class__.__name__, self.term)
 
+    def __hash__(self):
+        return hash(self.code + str(self.thesaurus_id))
+    
 class ISOThesaurus(Thesaurus):
     __mapper_args__ = {'polymorphic_identity': 'iso-code'} # used to populate thesauri.type
 
@@ -140,7 +147,8 @@ class NERCTerm(Term):
     thesaurus_id = Column(Integer, nullable=False)
 
     def __init__(self, key, term, abbrv, definition=None):
-        super(NERCTerm, self).__init__(None, term, definition)
+        code = key.rsplit('/', 1)[-1]
+        super(NERCTerm, self).__init__(code, term, definition)
         self.key = key
         self.abbrv = abbrv
 
@@ -197,7 +205,6 @@ class NERCVocab(object):
 
         terms = []
         for entry in vlist:
-            print str(entry)
             term = NERCTerm(entry.entryKey, entry.entryTerm, entry.entryTermAbbr, entry.entryTermDef)
             terms.append(term)
 
@@ -222,21 +229,23 @@ class Session(object):
         from datetime import date
         from json import load
         from os.path import dirname, join
+        from sqlalchemy import MetaData
+        
+        # drop all existing tables
+        current = MetaData(self.engine)
+        current.reflect()
+        current.drop_all()
+        del current
 
-        # ensure the schema is valid
+        # create the existing schema
         Thesaurus.metadata.create_all(self.engine)
 
         # these dictionaries define the supported thesauri
         thesauri_path = join(dirname(__file__), 'data', 'thesauri.json')
         thesauri_data = load(open(thesauri_path, 'r'))
 
-        terms_path = join(dirname(__file__), 'data', 'terms_with_codes.json')
+        terms_path = join(dirname(__file__), 'data', 'terms.json')
         terms_data = load(open(terms_path, 'r'))
-
-        # delete existing data. We only need to delete the thesauri as
-        # everything else cascades.
-        self.session.expire_all()
-        self.session.query(Thesaurus).delete(False)
 
         # add the NERC thesauri
         today = date.today()
@@ -288,6 +297,17 @@ class Session(object):
 
         try:
             return self.session.query(Thesaurus).filter(Thesaurus.id == id).one()
+        except NoResultFound:
+            return None
+
+    def getTermFromCode(self, thesaurus_id, code):
+        """
+        Retrieve a term from a specific thesaurus using it's code
+        """
+        from sqlalchemy.orm.exc import NoResultFound
+
+        try:
+            return self.session.query(Term).filter(Term.thesaurus_id == thesaurus_id).filter(Term.code == code).one()
         except NoResultFound:
             return None
 
@@ -376,6 +396,8 @@ class Session(object):
     def getDateTypeFromCode(self, code):
         return self._getTermFromCode(code, DateType)
 
+    def getSeaDataParameterFromCode(self, code):
+        return self._getTermFromCode(code, SeaDataParameter)
 
 if __name__ == '__main__':
     session = Session()

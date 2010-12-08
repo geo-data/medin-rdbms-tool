@@ -1,0 +1,15 @@
+MEDIN METADATA TOOL: TODO
+=========================
+
+- Thesauri refdates (revision dates) should be moved to the term
+  object, and these dates populated from the web service response
+  where appropriate, defaulting to the system time if not available
+  (i.e. in the case of ISO terms).
+
+- Augment Element (Topic Category) by mapping from THESAURUSID 10
+  keywords using P021 to P051 map, using THESAURUSID 3 to convert
+  codes to text.
+
+- Augment Element 11 (INSPIRE Keywords) by mapping from THESAURUSID 10
+  keywords using P021 to P220 map, using THESAURUSID 6 to convert
+  codes to text.

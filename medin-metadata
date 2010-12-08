@@ -258,21 +258,15 @@ requirements.""")
     try:
         provider_name, connstr = args
     except ValueError:
-        parser.error("incorrect number of arguments")
+        if not options.update_vocab:
+            parser.error("incorrect number of arguments")
+        provider_name = connstr = None
 
     check_environment()
 
     # turn on debugging
     if options.debug:
         medin.DEBUG = True
-
-    # try and load the provider plugin
-    log('Attempting to load provider %s' % provider_name)
-    import imp
-    try:
-        provider_module = imp.load_module(provider_name, *imp.find_module(provider_name, medin.provider.__path__))
-    except ImportError:
-        die('The provider is not supported: %s' % provider_name)
 
     # start a vocabulary session
     vocabs = medin.vocabulary.Session()
@@ -283,6 +277,18 @@ requirements.""")
         vocabs.create()    # clear and create the schema and hard-coded data
         log("Updating vocabularies from online sources")
         vocabs.update()    # update the online vocabs
+
+    if not provider_name:
+        # the user only asked for the vocabs to be updated
+        return
+
+    # try and load the provider plugin
+    log('Attempting to load provider %s' % provider_name)
+    import imp
+    try:
+        provider_module = imp.load_module(provider_name, *imp.find_module(provider_name, medin.provider.__path__))
+    except ImportError:
+        die('The provider is not supported: %s' % provider_name)
 
     # retrieve the metadata
     provider = provider_module.Session(connstr, vocabs)

@@ -2,8 +2,8 @@
 Example Metadata Provider
 
 This provides an example of how to add a metadata provider. It is
-based on the BODC metadata schema, which it partly implements in a
-sqlite database. This database can be found in data/example.sqlite
+based on the BODC metadata schema, which it implements in a sqlite
+database. This database can be found in data/example.sqlite
 
 As with any provider, the primary purpose of this module is to create
 a sqlalchemy mapping from the database schema to the medin.Metadata
@@ -12,15 +12,152 @@ class.
 
 from medin.provider import Session
 import medin.metadata as metadata
+from medin.vocabulary import Session as Vocabulary
+from sqlalchemy.orm import reconstructor
+import datetime
 
-# The BODC metadata classes
-class BODCMetadata(metadata.Metadata):
+# The Example metadata classes
+class ExampleMetadata(metadata.Metadata):
     """
     A class that is used for the sqlalchemy mapping
 
     This is used instead of the base Metadata class to avoid mapping
     clashes if more than one provider were to be used.
     """
+    RESTYP_ID = _RESTYP_ID = _resource_type = None
+    SDSTYP_ID = _SDSTYP_ID = _service_type = None
+    ACCESS_CONSTRAINTS = _ACCESS_CONSTRAINTS = _access_constraint_terms = None
+    RESPARTY = _RESPARTY = _responsible_parties = None
+    FREQMOD_ID = _FREQMOD_ID = _update_frequency = None
+    terms = None
+    
+    def __init__(self):
+        super(ExampleMetadata, self).__init__(self)
+        self.vocabs = Vocabulary()
+        self.terms = []
+    
+    # Ensure the object is fully instantiated by sqlalchemy when
+    # creating instances using the ORM
+    @reconstructor
+    def construct(self):
+        # default values
+        self.language = metadata.ResourceLanguage('English', 'eng')
+        self.vocabs = Vocabulary()
+
+    @property
+    def resource_type(self):
+        if not self.RESTYP_ID:
+            return None
+
+        # check to see if we need to update the cached value
+        if self._RESTYP_ID != self.RESTYP_ID:
+            resource_type = self.vocabs.getResourceTypeFromCode(int(self.RESTYP_ID))
+            if resource_type:
+                self._resource_type = resource_type.term
+            self._RESTYP_ID = self.RESTYP_ID
+
+        return self._resource_type
+
+    @property
+    def service_type(self):
+        if not self.SDSTYP_ID:
+            return None
+
+        # check to see if we need to update the cached value
+        if self._SDSTYP_ID != self.SDSTYP_ID:
+            service_type = self.vocabs.getINSPIREDataTypeFromCode(int(self.SDSTYP_ID))
+            if service_type:
+                self._service_type = service_type.term
+            self._SDSTYP_ID = self.SDSTYP_ID
+
+        return self._service_type
+    
+    def _getTerms(self, thesaurus_id):
+        """
+        Return terms for a specific thesaurus
+        """
+
+        for term in self.terms:
+            if term.thesaurus_id == thesaurus_id:
+                res = self.vocabs.getTermFromCode(term.thesaurus_id, term.code)
+                if not res:
+                    continue
+                yield res
+
+    @property
+    def topic_categories(self):
+        return list(self._getTerms(3))
+
+    @property
+    def keywords(self):
+        categories = []
+        for thesaurus_id in (10, 11):
+            categories.extend(self._getTerms(thesaurus_id))
+        return categories
+    
+    @property
+    def data_formats(self):
+        return list(self._getTerms(16))
+
+    @property
+    def extents(self):
+        extents = []
+        for thesaurus_id in (2, 13, 14, 15):
+            extents.extend(self._getTerms(thesaurus_id))
+        return extents
+
+    @property
+    def additional_info(self):
+        return "\n\n".join([str(c) for c in self.CITATIONS])
+
+    @property
+    def access_constraint_terms(self):
+        if not self.ACCESS_CONSTRAINTS:
+            return []
+
+        # check to see if we need to update the cached value
+        if self._ACCESS_CONSTRAINTS != self.ACCESS_CONSTRAINTS:
+            access_constraint_terms = []
+            for constraint in self.ACCESS_CONSTRAINTS:
+                term = self.vocabs.getAccessRestrictionFromCode(int(constraint.ISOCODEID))
+                if term: access_constraint_terms.append(term)
+
+            self._access_constraint_terms = access_constraint_terms
+            self._ACCESS_CONSTRAINTS = self.ACCESS_CONSTRAINTS
+
+        return self._access_constraint_terms
+
+    @property
+    def responsible_parties(self):
+        if not self.RESPARTY:
+            return []
+
+        # check to see if we need to update the cached value
+        if self._RESPARTY != self.RESPARTY:
+            responsible_parties = []
+            for party in self.RESPARTY:
+                term = self.vocabs.getContactRoleFromCode(int(party.ROLEID))
+                party.role = term
+                if term: responsible_parties.append(party)
+
+            self._responsible_parties = responsible_parties
+            self._RESPARTY = self.RESPARTY
+
+        return self._responsible_parties
+    
+    @property
+    def update_frequency(self):
+        if not self.FREQMOD_ID:
+            return None
+
+        # check to see if we need to update the cached value
+        if self._FREQMOD_ID != self.FREQMOD_ID:
+            update_frequency = self.vocabs.getMaintenanceFrequencyFromCode(int(self.FREQMOD_ID))
+            if update_frequency:
+                self._update_frequency = update_frequency.term
+            self._FREQMOD_ID = self.FREQMOD_ID
+
+        return self._update_frequency
 
 class AlternativeTitle(object):
     """
@@ -40,7 +177,7 @@ class ResourceLocator(metadata.ResourceLocator):
     Element 5
     """
     CITATIONID = None
-
+    
 class UniqueId(metadata.UniqueId):
     """
     Element 6
@@ -61,18 +198,25 @@ class CoupledResource(object):
     Element 7
     """
     METADATAID = None
-    resource = None
+    COUPLRES = None
 
-class ResourceLanguage(object):
-    """
-    Element 8
-    """
-    language = None
-    code = None
-    def __init__(self, code, language):
-        self.language = language
-        self.code = code
+    def __str__(self):
+        return str(self.COUPLRES)
 
+class Term(object):
+    """
+    Used to represent an entry in the CTRLVOCAB_RES table
+    """
+    METADATAID = None
+    TERMID = None
+
+    def __str__(self):
+        return str(self.TERMID)
+
+    @reconstructor
+    def construct(self):
+        self.thesaurus_id, self.code = int(self.TERMID[:2]), self.TERMID[2:]
+        
 class BoundingBox(metadata.BoundingBox):
     """
     Element 12
@@ -90,6 +234,229 @@ class BoundingBox(metadata.BoundingBox):
         self.maxx = maxx
         self.maxy = maxy
 
+class VerticalExtent(metadata.VerticalExtent):
+    """
+    Element 14
+
+    This element is defined to allow it to be used as a SQLAlchemy
+    composite column type
+    (http://www.sqlalchemy.org/docs/mappers.html#composite-column-types).
+    """
+    def __composite_values__(self):
+        return [self.minimum, self.maximum, self.crs]
+    
+    def __set_composite_values__(self, minimum, maximum, crs):
+        self.minimum = minimum
+        self.maximum = maximum
+        self.crs = crs
+
+class Proxy:
+    """
+    Proxy class
+
+    This class wraps an object. It passes all unhandled attribute
+    calls to the underlying object. This enables the proxy to override
+    the underlying object's attributes. In practice this works like
+    runtime inheritance.
+    """
+    def __init__(self, obj):
+        self._obj = obj
+
+    def __getattr__(self, name):
+        return getattr(self._obj, name)
+
+class Year(Proxy):
+    """
+    Class representing a year
+    """
+    
+    def __init__(self, year):
+        super(Year, self).__init__(datetime.date(year, 1, 1))
+
+    def isoformat(self):
+        return '%d-00-00' % self.year
+        
+    def __str__(self):
+        return str(self.year)
+    
+class YearMonth(Proxy):
+    """
+    Class representing a year and a month
+    """
+    def __init__(self, year, month):
+        super(YearMonth, self).__init__(datetime.date(year, month, 1))
+    
+    def isoformat(self):
+        return '%d-%02d-00' % (self._obj.year, self._obj.month)
+    
+    def __str__(self):
+        return self.isoformat()
+
+def parse_date(date):
+    """
+    Parse a date string into a datetime object
+    """
+    global _datep
+    try:
+        datep = _datep
+    except NameError:
+        from re import compile
+        # create a pattern that matches any isoformat date or time
+        datep = _datep = compile('^(?P<year>\d{4})(?:-(?P<month>\d{2})(?:-(?P<day>\d{2})(?:T(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})(?:\.(?P<microsecond>\d+))?)?)?)?$')
+
+    try:
+        groups = datep.match(date.strip()).groupdict()
+    except AttributeError:
+        return None
+
+    if groups['hour'] is not None:
+        # it is a datetime object
+        if groups['microsecond']:
+            groups['microsecond'] = int(groups['microsecond']) * 1000 # turn milliseconds into microseconds
+        return datetime.datetime(*[int(groups[k]) for k in ('year', 'month', 'day', 'hour', 'minute', 'second') if groups[k]])
+    elif groups['day']:
+        # it is a date object
+        return datetime.date(*[int(groups[k]) for k in ('year', 'month', 'day')])
+    elif groups['month']:
+        #  it is a YearMonth object
+        return YearMonth(*[int(groups[k]) for k in ('year', 'month')])
+
+    # it's a Year object
+    return Year(int(groups['year']))    
+    
+class TemporalReference(metadata.TemporalReference):
+    """
+    Element 16
+
+    This element is defined to allow it to be used as a SQLAlchemy
+    composite column type
+    (http://www.sqlalchemy.org/docs/mappers.html#composite-column-types).
+    """
+    
+    def __composite_values__(self):
+        return [str(self.begin), self.end, self.publication, self.revision, self.creation]
+    
+    def __set_composite_values__(self, begin, end, publication, revision, creation):
+        self.begin = parse_date(begin)
+        self.publication = publication
+        self.revision = revision
+        self.creation = creation
+
+class SpatialResolution(metadata.SpatialResolution):
+    """
+    Element 18
+    """
+    # emulate array
+    def __iter__(self):
+        yield self
+
+    def __composite_values__(self):
+        return [self.distance, self.equivalent_scale]
+
+    def __set_composite_values__(self, distance, equivalent_scale):
+        self.distance = distance
+        self.equivalent_scale = equivalent_scale
+
+class AdditionalInformation(object):
+    """
+    Element 19
+
+    This object aggregates various fields from the CITATION table and
+    concatenates them when stringified.
+    """
+
+    PUBYEAR = None
+    PUBTYP = None
+    PUBTITLE = None
+    VOLUME = None
+    ISSUE = None
+    PAGES = None
+    AUTHORS = None
+    EDITORS = None
+    PUBPLACE = None
+    ORGREP = None
+    EDITION = None
+    EDITIONDATE = None
+    PUBLISHER = None
+    PUBSUBTYP = None
+    CONTRACTCODE = None
+
+    def __str__(self):
+        s = []
+        if self.PUBYEAR:
+            s.append('Publication year: %s' % str(self.PUBYEAR))
+        if self.PUBTYP:
+            s.append('Publication type: %s' % self.PUBTYP)
+        if self.PUBTITLE:
+            s.append('Publication title: %s' % self.PUBTITLE)
+        if self.VOLUME:
+            s.append('Publication volume: %s' % str(self.VOLUME))
+        if self.ISSUE:
+            s.append('Publication issue: %s' % self.ISSUE)
+        if self.PAGES:
+            s.append('Publication pages: %s' % self.PAGES)
+        if self.AUTHORS:
+            s.append('Publication authors: %s' % self.AUTHORS)
+        if self.EDITORS:
+            s.append('Publication editors: %s' % self.EDITORS)
+        if self.PUBPLACE:
+            s.append('Place of publication: %s' % self.PUBPLACE)
+        if self.ORGREP:
+            s.append('Organisation representative: %s' % self.ORGREP)
+        if self.EDITION:
+            s.append('Edition: %s' % self.EDITION)
+        if self.EDITIONDATE:
+            s.append('Edition date: %s' % str(self.EDITIONDATE))
+        if self.PUBLISHER:
+            s.append('Publisher: %s' % self.PUBLISHER)
+        if self.PUBSUBTYP:
+            s.append('Publisher sub type: %s' % self.PUBSUBTYP)
+        if self.CONTRACTCODE:
+            s.append('Contract code: %s' % self.CONTRACTCODE)
+
+        return "\n".join(s)
+
+class AccessConstraint(object):
+    """
+    Element 20 controlled vocabularies
+
+    This links the metadata with the codes for Thesaurus 7
+    """
+    METADATAID = None
+    ISOCODEID = None
+
+class AccessUse(object):
+    """
+    Elements 20 & 21
+
+    This contains a description of otherRestriction for Element 20 or
+    the description for Element 21
+    """
+    ACCESSUSEID = None
+    DESCRIPTION = None
+
+    def __repr__(self):
+        return "<%s('%s')>" % (self.__class__.__name__, self.DESCRIPTION)
+
+    def __str__(self):
+        return str(self.DESCRIPTION)
+
+class ResponsibleParty(metadata.ResponsibleParty):
+    """
+    Element 22
+    """
+    FIRSTNAME = None
+    SURNAME = None
+    ORGID = None
+    CONTACTID = None
+
+    @property
+    def individual(self):
+        name = ' '.join((name for name in (self.FIRSTNAME, self.SURNAME) if name))
+        if name:
+            return name
+        return None
+
 # The concrete provider Session class
 class Session(Session):
     """
@@ -98,13 +465,15 @@ class Session(Session):
     This provides an interface to obtaining metadata entries by ID as
     well as iterating over the entire metadata collection.
     """
+
     def getEngine(self):
-         # we ignore the connection string (self.connstr)
         if self.engine:
             return self.engine
+
         from sqlalchemy import create_engine
         from os.path import join, dirname, abspath
         import medin
+
         dbname = abspath(join(dirname(medin.__file__),'data','example.sqlite'))
         self.engine = create_engine('sqlite:///'+dbname, echo=medin.DEBUG)
         return self.engine
@@ -116,47 +485,213 @@ class Session(Session):
         from sqlalchemy import Table, Column, Numeric, String, Date, DateTime, MetaData, ForeignKey
 
         metadata = MetaData() # N.B. not a medin.metadata.Metadata object!!
+
+        # Primary metadata record
         metadata_table = Table(
             'METADATA', metadata,
-            Column('METADATAID', Numeric(10), primary_key=True),
-            Column('TITLE', String(500)),
-            Column('ABSTRACT', String(4000)),
-            Column('RESTYP_ID', Numeric(10), nullable=False),
-            Column('RESLOC', String(200)),
-            Column('IDENTIFIER', String(255)),
-            Column('CODESPACE', String(255), default='http://www.bodc.ac.uk'),
-            Column('SDSTYP_ID', Numeric(10)),
-            Column('WEST', Numeric(7,4)),
-            Column('EAST', Numeric(7,4)),
-            Column('NORTH', Numeric(7,4)),
-            Column('SOUTH', Numeric(7,4)),
-            Column('VERTEXTMIN', Numeric(11)),
-            Column('VERTEXTMAX', Numeric(11)),
-            Column('VERTEXTREF_ID', String(500)),
-            Column('SRSYS_ID', String(500)),
-            Column('TEMPEXBGN', String(20)),
-            Column('REVDATE', Date()),
-            Column('CREATED', Date()),
-            Column('PUBDATE', Date()),
-            Column('TEMPEXEND', String(20)),
-            Column('LINEAGE', String(4000)),
-            Column('SPARES', String(20)),
-            Column('FREQMOD_ID', Numeric(10)),
-            Column('MODDATE', DateTime()),
-            Column('MODBY', String(50)),
-            Column('STD_ID', Numeric(10)))
+            Column('METADATAID', Numeric(10), primary_key=True,
+                   doc='Local primary key used as foreign key in other tables'),
+            Column('TITLE', String(500),
+                   doc='Used to populate MEDIN Element 1 (Resource Title)'),
+            Column('ABSTRACT', String(4000),
+                   doc='Used to populate MEDIN Element 3 (Resource Abstract)'),
+            Column('RESTYP_ID', Numeric(10), nullable=False,
+                   doc='Used to populate MEDIN Element 4 (Resource Type) using ISOCODEID in the Tool-managed table ISO_CODE which have a ThesaurusID = 12'),
+            Column('RESLOC', String(200),
+                   doc='Pointer into the ONLINERS field in the CITATION table used to populate MEDIN Element 5.1 (Resource Locator url) concatenate with PUBTITLE field in the CITATION table used to populate MEDIN Element 5.2 (Resource Locator Name).'),
+            Column('IDENTIFIER', String(255),
+                   doc='Used to populate MEDIN Element 6.1 (Unique Resource Identifier Code)'),
+            Column('CODESPACE', String(255), default='http://www.bodc.ac.uk',
+                   doc='Used to populate MEDIN Element 6.2 (Unique Resource Identifier Code Space)'),
+            Column('SDSTYP_ID', Numeric(10),
+                   doc='Used to populate MEDIN Element 10  (Spatial Data Service Type) after translation using ISOCODEID from Tool-managed table ISO_CODE which have a THESAURUSID = 1'),
+            Column('WEST', Numeric(7,4),
+                   doc='Used to populate MEDIN Element 12 (Geographic Bounding Box)'),
+            Column('EAST', Numeric(7,4),
+                   doc='Used to populate MEDIN element 12 (Geographic Bounding Box)'),
+            Column('NORTH', Numeric(7,4),
+                   doc='Used to populate MEDIN element 12 (Geographic Bounding Box)'),
+            Column('SOUTH', Numeric(7,4),
+                   doc='Used to populate MEDIN element 12 (Geographic Bounding Box)'),
+            Column('VERTEXTMIN', Numeric(11),
+                   doc='Used to populate MEDIN Element 14.1 (Vertical Extent Minimum Value)'),
+            Column('VERTEXTMAX', Numeric(11),
+                   doc='Used to populate MEDIN Element 14.2 (Vertical Extent Maximum Value)'),
+            Column('VERTEXTREF_ID', String(500),
+                   doc='Used to populate MEDIN Element 14.3 (Vertical Extent Coordinate Reference System)'),
+            Column('SRSYS_ID', String(500),
+                   doc='Used to populate MEDIN Element 15 (Spatial Reference System)'),
+            Column('TEMPEXBGN', String(20),
+                   doc='Used to populate MEDIN Element 16.1.1 (Temporal Extent Begin Date)'),
+            Column('REVDATE', Date(),
+                   doc='Used to populate MEDIN Element 16.3 (Date of Last Revision)'),
+            Column('CREATED', Date(),
+                   doc='Used to populate MEDIN Element 16.2 (Date of Publication)'),
+            Column('PUBDATE', Date(),
+                   doc='Used to populate MEDIN Element 16.4 (Date of Creation)'),
+            Column('TEMPEXEND', String(20),
+                   doc='Used to populate MEDIN Element 16.1.2 (Temporal Extent End Date)'),
+            Column('LINEAGE', String(4000),
+                   doc='Used to populate MEDIN Element 17 (Lineage)'),
+            Column('SPARES', String(20),
+                   doc='Used to populate MEDIN Element 18 (Spatial Resolution)'),
+            Column('FREQMOD_ID', Numeric(10),
+                   doc='Used to populate MEDIN Element 24 (Frequency of Update)'),
+            Column('MODDATE', DateTime(),
+                   doc='Used to populate MEDIN Element 26 (Metadata date)'),
+            Column('MODBY', String(50),
+                   doc="Name of person who last modified the metadata record"))
 
+        # Implements many alternative titles for one primary metadata record
         alt_title_table = Table(
             'ALT_TITLE', metadata,
-            Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True),
-            Column('ALTTITLE', String(350), primary_key=True))
+            Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True,
+                   doc='Foreign key linkage to Table METADATA'),
+            Column('ALTTITLE', String(350), primary_key=True,
+                   doc='Used to populate MEDIN Element 2 (Alternative Resource Title)'))
 
+        # Linker between primary metadata record and the people
+        # repository (Responsible_Party)
+        #
+        # This table provides the linkage between the metadata record
+        # and the people/organisations with which it is associated
+        # through MEDIN Element 22 (Responsible Party). It should
+        # include entries for the originator, custodian, metadata
+        # point of contact and optionally the distributor for the
+        # dataset.
+        resparty_res_table = Table(
+            'RESPARTY_RES', metadata,
+            Column('RESPARTYID', Numeric(10), ForeignKey('RES_PARTY.RESPARTYID'), primary_key=True,
+                   doc='Identifier of the person/organisation in the repository RES_PARTY table. Foreign key linkage to table RES_PARTY'),
+            Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True,
+                   doc='Foreign key linking to METADATA table'),
+            Column('ROLEID', Numeric(10),
+                   doc='Populate using ISOCODEID in the Tool-managed table ISO_CODE where ThesaurusID = 8'))
+
+        # People Repository
+        #
+        # This is a repository of people and organisation information.
+        res_party_table = Table(
+            'RES_PARTY', metadata,
+            Column('RESPARTYID', Numeric(10), primary_key=True,
+                   doc='Local primary key used as a Foreign key linking to RESPARTY_RS table'),
+            Column('FIRSTNAME', String(45),
+                   doc='Concatenated with SURNAME to provide MEDIN Element 22.4 (Metadata Point of Contact)'),
+            Column('SURNAME', String(80),
+                   doc='Concatenated with FIRSTNAME to provide MEDIN Element 22.4 (Metadata Point of Contact)'),
+            Column('ORGID', Numeric(10),
+                   doc='Foreign key linking to Tool-managed table ORGANISATION (based on EDMO)'),
+            Column('POSITIONTITLE', String(100),
+                   doc='Used to populate MEDIN Element 22.0.1 (Job Position)'),
+            Column('CONTACTID', Numeric(10),
+                   doc='Foreign key linking to Tool-managed table CONTACT'))
+
+        # Linker between primary metadata record and access
+        # constraints from ISO19115 controlled vocabulary
+        #
+        # Used to populate MEDIN Element 20 (Limitations on Public
+        # Access) using code translations from THESAURUSID 7 in the
+        # Tool managed table ISO_CODE.
+        a_c_resolve_table = Table(
+            'A_C_RESOLVE', metadata,
+            Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True,
+                   doc='Foreign key linking to METADATA table'),
+            Column('ISOCODEID', Numeric(10), primary_key=True,
+                   doc='Foreign key linking to Tool-managed table ISO_CODE where THESAURUSIS = 7'))
+
+        # Repository of plaintext usage restrictions and access
+        # constraint qualifiers
+        #
+        # Repository of plaintext strings used to populate MEDIN
+        # Elements 20 and 21 (Limitations on Public Access and
+        # Conditions Applying for Access and Use).
+        access_use_table = Table(
+            'ACCESS_USE', metadata,
+            Column('ACCESSUSEID', Numeric(10), primary_key=True,
+                   doc='Assign primary key'),
+            Column('DESCRIPTION', String(400),
+                   doc='Free text string describing terms for MEDIN Elements 20 and 21'))
+
+        # Linker between primary metadata record and plaintext access
+        # constraint qualifiers from Access_Use
+        # 
+        # Used to populate MEDIN Element 20 (Limitations on Public
+        # Access) 'otherConstraints' Element.  Note that in the next
+        # release of the MEDIN schema, this will be mandatory for all
+        # ISO restriction codes, not just 'otherRestrictions'.
+        o_r_resolve_table = Table(
+            'O_R_RESOLVE', metadata,
+            Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True,
+                   doc='Foreign key from table METADATA'),
+            Column('ACCESSUSEID', Numeric(10),
+                   ForeignKey('ACCESS_USE.ACCESSUSEID'), primary_key=True,
+                   doc='Foreign key from table ACCESS_USE'))
+
+        # Linker between primary metadata record and plaintext usage
+        # restrictions from Access_Use
+        #
+        # Used to populate MEDIN Element 21 (Conditions applying for
+        # Access and Use) using the strings held in the table
+        # ACCESS_USE linking via ACCESSUSEID.
+        a_u_resolve_table = Table(
+            'A_U_RESOLVE', metadata,
+            Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True,
+                   doc='Foreign key from table METADATA'),
+            Column('ACCESSUSEID', Numeric(10),
+                   ForeignKey('ACCESS_USE.ACCESSUSEID'), primary_key=True,
+                   doc='Foreign key providing linkage to ACCESS_USE table to populate MEDIN Element 21 (Conditions applying for Access and Use)'))
+
+        # Linker between primary metadata record and the controlled
+        # vocabularies in tables Keyword, DataFormat and Extent
+        ctrlvocab_res_table = Table(
+            'CTRLVOCAB_RES', metadata,
+            Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True,
+                   doc='Foreign key linkage to Table METADATA'),
+            Column('TERMID', String(10), primary_key=True,
+                   doc="""Linkage to keywords in several vocabularies.
+
+Links to THESAURUSID 10 are used to populate:
+
+- MEDIN Element 9 (Topic Category) after translation into ISO Topic
+  categories (using P021 to P051 map) and THESAURUSID 3 to convert
+  codes to text.
+
+- MEDIN Element 11 INSPIRE Keywords after translation (P021 to P220
+  map) and THESAURUSID 6 to convert codes to text.
+
+- MEDIN Element 11 MEDIN Keywords in their own right, translated from
+  codes to text using THESAURUSID 10.
+
+Links to THESAURUSIDs 2, 13, 14 or 15 are used to populate MEDIN
+Element 13 (Extent), translated from codes to text using the
+appropriate thesaurus.
+
+Links to THESAURUSID 11 are used to populate MEDIN Element 11 'Other'
+Keywords, translated from codes to text using THESAURUSID 11.
+
+Links to THESAURUSID 16 are used to populate MEDIN Element 23 (Data
+Format) translated from codes to text using the thesaurus."""))
+
+        # List of URIs to any services linked to the metadata
+        # document.
+        coupled_res_table = Table(
+            'COUPLED_RES', metadata,
+            Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True,
+                   doc='Foreign Key linkage to METADATA table'),
+            Column('COUPLRES', String(200), primary_key=True,
+                   doc='URI used to populate MEDIN Element 7 (Coupled Resource)'))
+
+        # Presumably MEDIN Element 19 (Additional Information Source)
+        # is built by concatenation.
         citation_table = Table(
             'CITATION', metadata,
-            Column('CITATIONID', Numeric(10), ForeignKey('METADATA.RESLOC'), primary_key=True),
-            Column('PUBYEAR', Date()),
+            Column('CITATIONID', Numeric(10), ForeignKey('METADATA.RESLOC'), primary_key=True,
+                   doc='Local Primary Key'),
+            Column('PUBYEAR', Date(),
+                   doc='Date of publication'),
             Column('PUBTYP', String(30)),
-            Column('PUBTITLE', String(1000)),
+            Column('PUBTITLE', String(1000),
+                   doc='Used to populate MEDIN Element 5.2.'),
             Column('VOLUME', Numeric(10)),
             Column('ISSUE', String(45)),
             Column('PAGES', String(10)),
@@ -164,19 +699,16 @@ class Session(Session):
             Column('EDITORS', String(255)),
             Column('PUBPLACE', String(200)),
             Column('ORGREP', String(255)),
-            Column('ONLINERES', String(500)),
-            Column('ONLINERESNAM', String(500)),
+            Column('ONLINERES', String(500),
+                   doc='ONLINERES used to populate MEDIN Element 5.1.'),
+            Column('ONLINERESNAM', String(500),
+                   doc='Name of online resource'),
             Column('EDITION', String(25)),
             Column('EDITIONDATE', Date()),
             Column('PUBLISHER', String(255)),
             Column('PUBSUBTYP', String(30)),
             Column('CONTRACTCODE',String(100)),
             Column('URL_ACCESSED', Date()))
-
-        coupled_res_table = Table(
-            'COUPLED_RES', metadata,
-            Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True),
-            Column('COUPLRES', String(200), primary_key=True))
             
         return metadata
 
@@ -184,7 +716,8 @@ class Session(Session):
         """
         Map the Metadata classes to the provider database schema
         """
-        from sqlalchemy.orm import mapper, relationship, composite
+        from sqlalchemy.orm import mapper, relationship, composite, synonym
+        from sqlalchemy.sql import select, join
 
         schema = self.getSchema()
 
@@ -194,25 +727,81 @@ class Session(Session):
         citation_table = schema.tables['CITATION']
         mapper(ResourceLocator, citation_table, properties={
                 'url': citation_table.c.ONLINERES,
-                'name': citation_table.c.ONLINERESNAM
+                'name': citation_table.c.PUBTITLE
                 })
+
+        mapper(AdditionalInformation, citation_table)
 
         coupled_res_table = schema.tables['COUPLED_RES']
-        mapper(CoupledResource, coupled_res_table, properties={
-                'resource': coupled_res_table.c.COUPLRES
-                })
+        mapper(CoupledResource, coupled_res_table)
 
+        ctrlvocab_res_table = schema.tables['CTRLVOCAB_RES']
+        mapper(Term, ctrlvocab_res_table)
+
+        a_c_resolve_table = schema.tables['A_C_RESOLVE']
+        mapper(AccessConstraint, a_c_resolve_table)
+
+        access_use_table = schema.tables['ACCESS_USE']
+        o_r_resolve_table = schema.tables['O_R_RESOLVE']
+        a_u_resolve_table = schema.tables['A_U_RESOLVE']
+        mapper(AccessUse, access_use_table)
+
+        res_party_table = schema.tables['RES_PARTY']
+        resparty_res_table = schema.tables['RESPARTY_RES']
+        res_party_join = join(res_party_table, resparty_res_table)
+        mapper(ResponsibleParty, res_party_join, properties={
+            'ROLEID': resparty_res_table.c.ROLEID,
+            'FIRSTNAME': res_party_table.c.FIRSTNAME,
+            'SURNAME': res_party_table.c.SURNAME,
+            'ORGID': res_party_table.c.ORGID,
+            'position': res_party_table.c.POSITIONTITLE,
+            'CONTACTID': res_party_table.c.CONTACTID
+            })
+        
         metadata_table = schema.tables['METADATA']
-        mapper(BODCMetadata, metadata_table, properties={
-            'date': metadata_table.c.MODDATE,
+        mapper(ExampleMetadata, metadata_table, properties={
             'title': metadata_table.c.TITLE,
+            'alt_titles': relationship(AlternativeTitle, order_by=AlternativeTitle.ALTTITLE),
             'abstract': metadata_table.c.ABSTRACT,
-            'resource_type': metadata_table.c.RESTYP_ID,
-            'resource_locators': relationship(ResourceLocator), # TODO: update, see Schema Changes, medin_schema_doc_2_3_3_11mar10.doc
-            'unique_id': composite(UniqueId, metadata_table.c.IDENTIFIER, metadata_table.c.CODESPACE),
+            'RESTYP_ID': metadata_table.c.RESTYP_ID,
+            'resource_locators': relationship(ResourceLocator),
+            'unique_id': composite(
+                    UniqueId,
+                    metadata_table.c.IDENTIFIER,
+                    metadata_table.c.CODESPACE),
             'coupled_resources': relationship(CoupledResource),
-            'bounding_box': composite(BoundingBox, metadata_table.c.WEST, metadata_table.c.SOUTH, metadata_table.c.EAST, metadata_table.c.NORTH),
-            'alt_titles': relationship(AlternativeTitle, order_by=AlternativeTitle.ALTTITLE)
+            'terms': relationship(Term),
+            'SDSTYP_ID': metadata_table.c.SDSTYP_ID,
+            'bounding_box': composite(
+                    BoundingBox,
+                    metadata_table.c.WEST,
+                    metadata_table.c.SOUTH,
+                    metadata_table.c.EAST,
+                    metadata_table.c.NORTH),
+            'vertical_extent': composite(
+                    VerticalExtent,
+                    metadata_table.c.VERTEXTMIN,
+                    metadata_table.c.VERTEXTMAX,
+                    metadata_table.c.VERTEXTREF_ID),
+            'srs': metadata_table.c.SRSYS_ID,
+            'temporal_reference': composite(
+                    TemporalReference,
+                    metadata_table.c.TEMPEXBGN,
+                    select(["NULL"]),
+                    metadata_table.c.PUBDATE,
+                    metadata_table.c.REVDATE,
+                    metadata_table.c.CREATED),
+            'lineage': metadata_table.c.LINEAGE,
+            'spatial_resolutions': composite(
+                    SpatialResolution,
+                    metadata_table.c.SPARES,
+                    select(["NULL"])),
+            'CITATIONS': relationship(AdditionalInformation),
+            'ACCESS_CONSTRAINTS': relationship(AccessConstraint, order_by=AccessConstraint.ISOCODEID),
+            'other_access_constraints': relationship(AccessUse, secondary=o_r_resolve_table),
+            'use_limitations': relationship(AccessUse, secondary=a_u_resolve_table),
+            'RESPARTY': relationship(ResponsibleParty),
+            'date': metadata_table.c.MODDATE
         })
 
     def getMetadataById(self, code):
@@ -221,18 +810,14 @@ class Session(Session):
         
         id = UniqueId(code, 'http://www.bodc.ac.uk/')
         try:
-            metadata = self.sess.query(BODCMetadata).filter(BODCMetadata.unique_id == id).one()
+            metadata = self.sess.query(ExampleMetadata).filter(ExampleMetadata.unique_id == id).one()
             metadata.vocabs = self.vocabs
-            # hard-coded values...
-            metadata.resource_languages = [ResourceLanguage('eng', 'English')]
             return metadata
         except NoResultFound:
             return None
 
     def __iter__(self):
         # iterate over all metadata instances
-        for metadata in self.sess.query(BODCMetadata):
+        for metadata in self.sess.query(ExampleMetadata):
             metadata.vocabs = self.vocabs
-            # hard-coded values...
-            metadata.resource_languages = [ResourceLanguage('eng', 'English')]
             yield metadata

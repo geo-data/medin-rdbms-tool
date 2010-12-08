@@ -7,6 +7,7 @@ using the appropriate provider plugin module in the medin.provider
 package.
 """
 import libxml2
+from xml.sax.saxutils import escape
 
 class Metadata(object):
     """
@@ -45,6 +46,7 @@ class Metadata(object):
 
     # Element 11
     keywords = None
+    is_harvested = True         # is the metadata MEDIN OAI harvested?
 
     # Element 12
     bounding_box = None
@@ -56,7 +58,7 @@ class Metadata(object):
     vertical_extent = None
 
     # Element 15
-    spatial_reference_system = None
+    srs = None
 
     # Element 16
     temporal_reference = None
@@ -65,26 +67,26 @@ class Metadata(object):
     lineage = None
     
     # Element 18
-    spatial_resolution = None
+    spatial_resolutions = None
     
     # Element 19
     additional_info = None
 
     # Element 20
-    limitations_public_access = None
-    limitations_public_access_vocab = None
+    access_constraint_terms = None # terms from controlled vocabularies
+    other_access_constraints = None # other free text access constraints
 
     # Element 21
-    conditions_applying_for_access_and_use = None
+    use_limitations = None
 
     # Element 22
     responsible_parties = None
 
     # Element 23
-    data_format = None
+    data_formats = None
 
     # Element 24
-    frequency_of_update = None
+    update_frequency = None
 
     # Element 25
     inspire_conformity = None
@@ -99,7 +101,10 @@ class Metadata(object):
     version = 'Version 2.3'
 
     # Element 29
-    language = 'English'
+    language = None
+
+    # Element 30
+    parent_id = None
 
     def __init__(self):
         # multiple values
@@ -109,11 +114,29 @@ class Metadata(object):
         self.resource_languages = []
         self.topic_categories = []
         self.keywords = []
-        self.spatial_resolution = []
-        self.limitations_public_access = []
-        self.limitations_public_access_vocab = []
-        self.conditions_applying_for_access_and_use = []
+        self.spatial_resolutions = []
+        self.access_constraints = []
+        self.use_limitations = []
         self.responsible_parties = []
+        self.data_formats = []
+        self.extents = []
+
+        # default values
+        self.language = ResourceLanguage('English', 'eng')
+
+    def fileIdentifier(self):
+        """
+        Generate an unique file identifier for this metadata entry
+
+        This identifier is derived from the UUID 5 algorithm (an UUID
+        derived from an URL).  The URL is created from the unique
+        identifer (Element 6).
+        """
+
+        from uuid import uuid5, NAMESPACE_URL
+
+        name = str(self.unique_id)
+        return uuid5(NAMESPACE_URL, name).hex
 
 class ResourceLocator(object):
     """
@@ -125,7 +148,9 @@ class ResourceLocator(object):
 class UniqueId(object):
     """
     Element 6
-    (jra: not sure the purpose of the comparison methods -- is it for suds?)
+
+    The comparison methods are there to make it possible for this
+    object to be used in SQLAlchemy filters on SQL queries.
     """
     id = None
     codespace = None
@@ -148,18 +173,16 @@ class UniqueId(object):
             return self.codespace + self.id
         return self.id
 
-class CoupledResource(object):
-    """
-    Element 7
-    """
-    resource = None
-
 class ResourceLanguage(object):
     """
     Element 8
     """
-    language = None
+    name = None
     code = None
+
+    def __init__(self, name, code):
+        self.name = name
+        self.code = code
 
 class Keyword(object):
     """
@@ -200,47 +223,37 @@ class VerticalExtent(object):
     """
     Element 14
     """
-    minv = None
-    maxv = None
-    refid = None
+    minimum = None
+    maximum = None
+    crs = None
 
-    def __init__(self, minv, maxv, refid):
-        self.minv = minv
-        self.maxv = maxv
-        self.refid = refid
+    def __init__(self, minimum, maximum, crs):
+        self.minimum = minimum
+        self.maximum = maximum
+        self.crs = crs
 
     def __nonzero__(self):
-        return minv is not None
-
-#class SpatialReferenceSystem(object):
-#    """
-#    Element 15
-#    """
-#    code = None
-#    codeSpace = None
+        return bool(self.minimum and self.maximum and self.crs)
 
 class TemporalReference(object):
     """
     Element 16
     """
-    extent_begin = None
-    extent_end = None
-    date_publication = None
-    #date_publication_type = None
-    date_revision = None
-    #date_revision_type = None
-    date_creation = None
-    #date_creation_type = None
+    begin = None
+    end = None
+    publication = None
+    revision = None
+    creation = None
 
-    def __init__(self, begin, end, pub, rev, create):
-        self.extent_begin = begin
-        self.extent_end = end
-        self.date_publication = pub
-        self.date_revision = rev
-        self.date_creation = create
+    def __init__(self, begin, end, publication, revision, creation):
+        self.begin = begin
+        self.end = end
+        self.publication = publication
+        self.revision = revision
+        self.creation = creation
 
     def __nonzero__(self):
-        return self.extent_begin is not None
+        return bool(self.begin or self.publication or self.revision or self.creation)
 
 class SpatialResolution(object):
     """
@@ -252,6 +265,18 @@ class SpatialResolution(object):
         self.distance = distance
         self.equivalent_scale = equivalent_scale
 
+class ResponsibleParty(object):
+    """
+    Element 22
+    """
+    position = None
+    individual = None
+    organisation = None
+    address = None
+    telephone = None
+    fax = None
+    email = None
+    role = None
 
 class XMLBuilder(object):
     """
@@ -277,9 +302,11 @@ class XMLBuilder(object):
         gco = root.newNs("http://www.isotc211.org/2005/gco", "gco")
         xlink = root.newNs("http://www.w3.org/1999/xlink", "xlink")
         srv = root.newNs("http://www.isotc211.org/2005/srv", "srv")
+        gmx = root.newNs("http://www.isotc211.org/2005/gmx", "gmx")
         root.setNs(gmd)
         self.ns = {'gml':gml,
                    'gmd':gmd,
+                   'gmx':gmx,
                    'gco':gco,
                    'srv':srv,
                    'xlink':xlink}
@@ -291,21 +318,34 @@ class XMLBuilder(object):
         This should only be called once per instance!
         """
 
+        self.root.addChild(self.fileIdentifier())
         self.root.addChild(self.identificationInfo())
-        self.root.addChild(self.hierarchyLevel())
+        node = self.resourceType()
+        if node: self.root.addChild(node)
         self.root.addChild(self.distributionInfo())
-        for node in self.responsibleParties_distributors():
-            self.root.addChild(node)
-        self.root.addChild(self.spatialReferenceSystem())
+        node = self.spatialReferenceSystem()
+        if node: self.root.addChild(node)
         self.root.addChild(self.dataQualityInfo())
-        for node in self.responsibleParties_pointsOfContact():
+        for node in self.metadataPointsOfContact():
             self.root.addChild(node)
         self.root.addChild(self.dateStamp())
         self.root.addChild(self.metadataStandardName())
         self.root.addChild(self.metadataStandardVersion())
         self.root.addChild(self.language())
+        node = self.parentIdentifier()
+        if node: self.root.addChild(node)
         
         return self.doc
+
+    def fileIdentifier(self):
+        """
+        Create the unique metadata identifier
+        """
+        identifier = self.m.fileIdentifier()
+        fileIdentifier = self.doc.newDocNode(self.ns['gmd'], 'fileIdentifier', None)
+        fileIdentifier.newChild(self.ns['gco'], 'CharacterString', escape(str(identifier)))
+
+        return fileIdentifier
 
     def identificationInfo(self):
         """
@@ -323,33 +363,28 @@ class XMLBuilder(object):
         MD_DataIdentification.addChild(self.extent())
         for node in self.resourceLanguages():
             MD_DataIdentification.addChild(node)
-        SV_ServiceIdentification = self.ServiceIdentification()
-        if SV_ServiceIdentification.children is not None:
-            MD_DataIdentification.addChild(SV_ServiceIdentification)
+
+        SV_ServiceIdentification = self.serviceIdentification()
+        if SV_ServiceIdentification: MD_DataIdentification.addChild(SV_ServiceIdentification)
+
         for node in self.topicCategories():
             MD_DataIdentification.addChild(node)
 
         nodes = self.keywords()
-        # TODO: add other keyword types (date etc.)
-        if nodes is not None:
-            descriptiveKeywords = MD_DataIdentification.newChild(
-                None, 'descriptiveKeywords', None)
-            MD_Keywords = descriptiveKeywords.newChild(
-                None, 'MD_Keywords', None)
+        if nodes:
             for node in nodes:
-                MD_Keywords.addChild(node)
-        MD_DataIdentification.addChild(self.temporalReference());
+                MD_DataIdentification.addChild(node)
+
         for node in self.temporalReferenceDates():
             CI_Citation.addChild(node)
 
-        MD_DataIdentification.addChild(self.spatialResolution())
+        node = self.spatialResolution()
+        if node: MD_DataIdentification.addChild(node)
 
-        if self.m.additional_info is not None:
-            MD_DataIdentification.addChild(self.additionalInfo())
-
+        node = self.additionalInfo()
+        if node: MD_DataIdentification.addChild(node)
 
         resourceConstraints = MD_DataIdentification.newChild(
-#self.doc.newDocNode(
             None, 'resourceConstraints', None)
         MD_LegalConstraints = resourceConstraints.newChild(
             None, 'MD_LegalConstraints', None)
@@ -358,32 +393,34 @@ class XMLBuilder(object):
         for node in self.conditionsForAccessAndUse():
             MD_DataIdentification.addChild(node)
 
-        #MD_DataIdentification.addChild(self.responsibleParties_originator())
+        for node in self.pointsOfContact():
+            MD_DataIdentification.addChild(node)
 
-        if self.m.data_format is not None:
-            MD_DataIdentification.addChild(self.dataFormat())
+        for node in self.dataFormats():
+            MD_DataIdentification.addChild(node)
 
+        node = self.frequencyOfUpdate()
+        if node: MD_DataIdentification.addChild(node)
+            
         return identificationInfo
-
-    def hierarchyLevel(self):
-        hierarchyLevel = self.doc.newDocNode(self.ns['gmd'], 'hierarchyLevel', None)
-        hierarchyLevel.addChild(self.resourceType())
-        return hierarchyLevel
 
     def distributionInfo(self):
         distributionInfo = self.doc.newDocNode(self.ns['gmd'], 'distributionInfo', None)
         MD_Distribution = distributionInfo.newChild(None, 'MD_Distribution', None)
-        MD_Distribution.addChild(self.doc.newDocComment(
-                "ISO 19115 Constraints require this element!"))
+        MD_Distribution.addChild(self.doc.newDocComment("ISO 19115 Constraints require this element!"))
         distributionFormat = MD_Distribution.newChild(None, 'distributionFormat', None)
         distributionFormat.setNsProp(self.ns['gco'], 'nilReason', 'inapplicable')
+
         if self.m.resource_locators:
             transferOptions = MD_Distribution.newChild(None, 'transferOptions', None)
-            MD_DigitalTransferOptions = transferOptions.newChild(
-                None, 'MD_DigitalTransferOptions', None)
+            MD_DigitalTransferOptions = transferOptions.newChild(None, 'MD_DigitalTransferOptions', None)
             onLine = MD_DigitalTransferOptions.newChild(None, 'onLine', None)
             for node in self.resourceLocators():
                 onLine.addChild(node)
+
+        for node in self.distributors():
+            MD_Distribution.addChild(node)
+
         return distributionInfo
 
     def dataQualityInfo(self):
@@ -397,50 +434,52 @@ class XMLBuilder(object):
         level = SQ_Scope.newChild(None, 'level', 'dataset')
         level.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#MD_ScopeCode')
         level.setProp('codeListValue', 'dataset')
-        
-        DQ_DataQuality.addChild(self.doc.newDocComment("Lineage"))
-        DQ_DataQuality.addChild(self.lineage())
+
+        lineage = self.lineage()
+        if lineage:
+            DQ_DataQuality.addChild(self.doc.newDocComment("Lineage"))
+            DQ_DataQuality.addChild(self.lineage())
         return dataQualityInfo
 
-    def ServiceIdentification(self):
+    def serviceIdentification(self):
         SV_ServiceIdentification = self.doc.newDocNode(
             self.ns['srv'], 'SV_ServiceIdentification', None)
 
         for node in self.coupledResources():
             SV_ServiceIdentification.addChild(node)
 
-        if self.m.service_type:
-            SV_ServiceIdentification.addChild(self.spatialDataServiceType())
+        node = self.spatialDataServiceType()
+        if node: SV_ServiceIdentification.addChild(node)
 
-        return SV_ServiceIdentification
+        if SV_ServiceIdentification.children:
+            return SV_ServiceIdentification
 
+        return None
 
     def extent(self):
         extent = self.doc.newDocNode(self.ns['gmd'], 'extent', None)
         EX_Extent = extent.newChild(None, 'EX_Extent', None)
-        geographicElement = EX_Extent.newChild(None, 'geographicElement', None)
-        geographicElement.addChild(self.boundingBox());
 
-        if self.m.extents is not None:
-            EX_GeographicDescription = geographicElement.newChild(
-                None, 'EX_GeographicDescription', None)
-            EX_GeographicDescription.addChild(self.doc.newDocComment(
-                    'Extent - by Identifier'))
-            for node in self.extents():
-                EX_GeographicDescription.addChild(node)
+        bbox = self.boundingBox()
+        if bbox: EX_Extent.addChild(bbox)
 
-        if self.m.vertical_extent is not None:
-            EX_Extent.addChild(self.verticalExtent())
+        for node in self.extents():
+            EX_Extent.addChild(node)
 
+        node = self.verticalExtent()
+        if node: EX_Extent.addChild(node)
+
+        node = self.temporalExtent()
+        if node: EX_Extent.addChild(node) 
+            
         return extent
-
 
     def title(self):
         """
         Element 1 to XML
         """
         title = self.doc.newDocNode(self.ns['gmd'], 'title', None)
-        characterString = title.newChild(self.ns['gco'], 'CharacterString', self.m.title)
+        characterString = title.newChild(self.ns['gco'], 'CharacterString', escape(self.m.title))
         return title
 
     def alternativeTitles(self):
@@ -450,7 +489,7 @@ class XMLBuilder(object):
         alt_titles = []
         for title in self.m.alt_titles:
             alternateTitle = self.doc.newDocNode(self.ns['gmd'], 'alternateTitle', None)
-            characterString = alternateTitle.newChild(self.ns['gco'], 'CharacterString', str(title))
+            characterString = alternateTitle.newChild(self.ns['gco'], 'CharacterString', escape(str(title)))
             alt_titles.append(alternateTitle)
         return alt_titles
 
@@ -459,7 +498,7 @@ class XMLBuilder(object):
         Element 3 to XML
         """
         abstract = self.doc.newDocNode(self.ns['gmd'], 'abstract', None)
-        characterString = abstract.newChild(self.ns['gco'], 'CharacterString', str(self.m.abstract))
+        characterString = abstract.newChild(self.ns['gco'], 'CharacterString', escape(str(self.m.abstract)))
         return abstract
 
     def resourceType(self):
@@ -467,13 +506,17 @@ class XMLBuilder(object):
         Element 4 to XML
         (must be 5 [dataset], 6 [series], or 14 [service])
         """
-        term = self.m.vocabs.getResourceTypeFromCode(self.m.resource_type).term
-        MD_ScopeCode = self.doc.newDocNode(self.ns['gmd'], 'MD_ScopeCode', term)
+        if not self.m.resource_type:
+            return None
+
+        resource_type = escape(str(self.m.resource_type))
+        hierarchyLevel = self.doc.newDocNode(self.ns['gmd'], 'hierarchyLevel', None)
+        MD_ScopeCode = hierarchyLevel.newChild(None, 'MD_ScopeCode', resource_type)
         MD_ScopeCode.setProp(
             'codeList',
             'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#MD_ScopeCode')
-        MD_ScopeCode.setProp('codeListValue', term)
-        return MD_ScopeCode
+        MD_ScopeCode.setProp('codeListValue', resource_type)
+        return hierarchyLevel
 
     def resourceLocators(self):
         """
@@ -484,10 +527,9 @@ class XMLBuilder(object):
         for rl in self.m.resource_locators:        
             CI_OnlineResource = self.doc.newDocNode(self.ns['gmd'], 'CI_OnlineResource', None)
             linkage = CI_OnlineResource.newChild(None, 'linkage', None)
-            URL = linkage.newChild(None, 'URL', rl.url)
-            # query: what's the XML spec for providing link's name??
+            linkage.newChild(None, 'URL', escape(str(rl.url)))
             if rl.name:
-                name = linkage.newChild(None, 'name', rl.name)
+                CI_OnlineResource.newChild(None, 'name', escape(str(rl.name)))
             resource_locators.append(CI_OnlineResource)
         return resource_locators
 
@@ -498,10 +540,10 @@ class XMLBuilder(object):
         unique_id = self.m.unique_id
         identifier = self.doc.newDocNode(self.ns['gmd'], 'identifier', None)
         code = identifier.newChild(None, 'code', None)
-        characterString = code.newChild(self.ns['gco'], 'CharacterString', unique_id.id)
+        characterString = code.newChild(self.ns['gco'], 'CharacterString', escape(str(unique_id.id)))
         if unique_id.codespace:
             codeSpace = identifier.newChild(None, 'codeSpace', None)
-            characterString = codeSpace.newChild(self.ns['gco'], 'CharacterString', unique_id.codespace)
+            characterString = codeSpace.newChild(self.ns['gco'], 'CharacterString', escape(str(unique_id.codespace)))
             
         return identifier
 
@@ -512,8 +554,9 @@ class XMLBuilder(object):
         coupled_resources = []
         for coupled_resource in self.m.coupled_resources:
             operatesOn = self.doc.newDocNode(self.ns['srv'], 'operatesOn', None)
-            operatesOn.setNsProp(self.ns['xlink'], 'href', coupled_resource.resource)
+            operatesOn.setNsProp(self.ns['xlink'], 'href', escape(str(coupled_resource)))
             coupled_resources.append(operatesOn)
+
         return coupled_resources
 
     def resourceLanguages(self):
@@ -528,9 +571,9 @@ class XMLBuilder(object):
 
         for resource_language in self.m.resource_languages:
             language = self.doc.newDocNode(self.ns['gmd'], 'language', None)
-            LanguageCode = language.newChild(None, 'LanguageCode', resource_language.language)
+            LanguageCode = language.newChild(None, 'LanguageCode', escape(str(resource_language.language)))
             LanguageCode.setProp('codeList', 'http://www.loc.gov/standards/iso639-2/php/code_list.php')
-            LanguageCode.setProp('codeListValue', resource_language.code)
+            LanguageCode.setProp('codeListValue', escape(str(resource_language.code)))
             resource_languages.append(language)
         return resource_languages
 
@@ -539,16 +582,14 @@ class XMLBuilder(object):
         Element 9 to XML
         """
         try:
-            it = iter(self.m.topic_categories)
+            iterable = iter(self.m.topic_categories)
         except TypeError:
             return []
 
-        topic_catagories = []
-        for topic_category in self.m.topic_categories:
-            if not self.m.vocabs.getTopicCategory(topic_category):
-                continue
+        topic_categories = []
+        for topic_category in iterable:
             topicCategory = self.doc.newDocNode(self.ns['gmd'], 'topicCateogory', None)
-            MD_TopicCategoryCode = topicCategory.newChild(None, 'MD_TopicCategoryCode', topic_category)
+            MD_TopicCategoryCode = topicCategory.newChild(None, 'MD_TopicCategoryCode', escape(topic_category.term))
             topic_categories.append(topicCategory)
         return topic_categories
 
@@ -556,57 +597,67 @@ class XMLBuilder(object):
         """
         Element 10 to XML
         """
+        if not self.m.service_type:
+            return None
+
         serviceType = self.doc.newDocNode(self.ns['srv'], 'serviceType', None)
-        LocalName = serviceType.newChild(self.ns['gco'], 'LocalName', self.m.vocabs.getINSPIREDataTypeFromCode(self.m.service_type))
+        serviceType.newChild(self.ns['gco'], 'LocalName', escape(str(self.m.service_type)))
+
         return serviceType
 
     def keywords(self):
         """
         Element 11 to XML
         """
-        keyword_nodes = []
-        thesaurus_nodes = []
-        thesauri = set() # all elements distinct
-        for node in self.m.keywords:
-            keyword = self.doc.newDocNode(self.ns['gmd'], 'keyword', None)
-            CharacterString = keyword.newChild(
-                self.ns['gco'], 'CharacterString', node.keyword)
-            keyword_nodes.append(keyword)
-            thesauri.add(node.thesaurus)
 
-        for thesaurus_id in thesauri:
-            thesaurus = self.m.vocabs.getThesaurus(thesaurus_id)
-            # TODO: add date, date type -- add to vocabs?
-            thesaurus.date = 'TO DO'
-            thesaurus.dateType = 'TO DO'
-            
-            thesaurusName = self.doc.newDocNode(
-                self.ns['gmd'], 'thesaurusName', None)
-            CI_Citation = thesaurusName.newChild(None, 'CI_Citation', None)
-            title = CI_Citation.newChild(None, 'title', None)
-            CharacterString = title.newChild(
-                self.ns['gco'], 'CharacterString', thesaurus.name)
+        # add in the OAI Harvesting keyword if required
+        nodes = []
+        if self.m.is_harvested:
+            descriptiveKeywords = self.doc.newDocNode(self.ns['gmd'], 'descriptiveKeywords', None)
+            MD_Keywords = descriptiveKeywords.newChild(None, 'MD_Keywords', None)
+            keyword = MD_Keywords.newChild(None, 'keyword', None)
+            Anchor = keyword.newChild(self.ns['gmx'], 'Anchor', 'NDGO0001')
+            Anchor.setNsProp(self.ns['xlink'], 'href', 'http://vocab.ndg.nerc.ac.uk/term/N010/0')
+            Anchor.setNsProp(self.ns['xlink'], 'title', 'NERC OAI Harvesting')
+            nodes.append(descriptiveKeywords)
 
-            date = CI_Citation.newChild(None, 'date', None)
-            CI_Date = date.newChild(None, 'CI_Date', None)
-            date2 = CI_Date.newChild(None, 'date', None)
-            Date = date2.newChild(self.ns['gco'], 'Date', thesaurus.date)
-            dateType = CI_Date.newChild(None, 'dateType', None)
-            CI_DateTypeCode = dateType.newChild(None, 'CI_DateTypeCode', thesaurus.dateType)
-            CI_DateTypeCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode')
-            CI_DateTypeCode.setProp('codeListValue', thesaurus.dateType)
+        keywords = self.m.keywords
+        if not keywords and not nodes:
+            return []
 
-            thesaurus_nodes.append(thesaurusName)
+        # associate keywords with thesauri
+        thesauri = {}
+        for term in keywords:
+            try:
+                thesauri[term.thesaurus].append(term)
+            except KeyError:
+                thesauri[term.thesaurus] = [term]
 
-        return keyword_nodes + thesaurus_nodes
+        # create nodes for each thesaurus
+        for thesaurus, terms in thesauri.items():
+            descriptiveKeywords = self.doc.newDocNode(self.ns['gmd'], 'descriptiveKeywords', None)
+            MD_Keywords = descriptiveKeywords.newChild(None, 'MD_Keywords', None)
+
+            # add the thesaurus terms
+            for term in terms:
+                keyword = MD_Keywords.newChild(None, 'keyword', None)
+                CharacterString = keyword.newChild(self.ns['gco'], 'CharacterString', escape(term.term))
+
+            # add the thesaurus itself
+            thesaurusName = descriptiveKeywords.newChild(None, 'thesaurusName', None)
+            thesaurusName.addChild(self.thesaurusToXML(thesaurus))
+                
+            nodes.append(descriptiveKeywords)
+
+        return nodes
             
     def boundingBox(self):
         """
         Element 12 to XML
         """
         bbox = self.m.bounding_box
-        EX_GeographicBoundingBox = self.doc.newDocNode(
-            self.ns['gmd'], 'EX_GeographicBoundingBox', None)
+        geographicElement = self.doc.newDocNode(self.ns['gmd'], 'geographicElement', None)
+        EX_GeographicBoundingBox = geographicElement.newChild(None, 'EX_GeographicBoundingBox', None)
         westBoundLongitude = EX_GeographicBoundingBox.newChild(
             None, 'westBoundLongitude', None)
         eastBoundLongitude = EX_GeographicBoundingBox.newChild(
@@ -615,64 +666,89 @@ class XMLBuilder(object):
             None, 'southBoundLongitude', None)
         northBoundLongitude = EX_GeographicBoundingBox.newChild(
             None, 'northBoundLongitude', None)
-        westBoundLongitude.newChild(self.ns['gco'], 'Decimal', str(bbox.minx))
-        eastBoundLongitude.newChild(self.ns['gco'], 'Decimal', str(bbox.maxx))
-        southBoundLongitude.newChild(self.ns['gco'], 'Decimal', str(bbox.miny))
-        northBoundLongitude.newChild(self.ns['gco'], 'Decimal', str(bbox.maxy))
-        return EX_GeographicBoundingBox
+        westBoundLongitude.newChild(self.ns['gco'], 'Decimal', escape(str(bbox.minx)))
+        eastBoundLongitude.newChild(self.ns['gco'], 'Decimal', escape(str(bbox.maxx)))
+        southBoundLongitude.newChild(self.ns['gco'], 'Decimal', escape(str(bbox.miny)))
+        northBoundLongitude.newChild(self.ns['gco'], 'Decimal', escape(str(bbox.maxy)))
+        return geographicElement
+
+    def dateToXML(self, date):
+        """
+        Convert a date or datetime object to XML
+        """
+        from datetime import datetime
+        
+        sdate = date.isoformat()
+        if isinstance(date, datetime):
+            ele_name = 'DateTime'
+        else:
+            ele_name = 'Date'
+        return self.doc.newDocNode(self.ns['gco'], ele_name, escape(sdate))
+
+    def dateToDateType(self, date, code):
+        """
+        Convert a date or datetime object with associated type code to XML
+        """
+        code = escape(code)
+        date_node = self.doc.newDocNode(self.ns['gmd'], 'date', None)
+        CI_Date = date_node.newChild(None, 'CI_Date', None)
+        date_node2 = CI_Date.newChild(None, 'date', None)
+        date_node2.addChild(self.dateToXML(date))
+        dateType = date_node.newChild(None, 'dateType', None)
+        CI_DateTypeCode = date_node.newChild(None, 'CI_DateTypeCode', code)
+        CI_DateTypeCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode')
+        CI_DateTypeCode.setProp('codeListValue', code)
+
+        return date_node
+    
+    def thesaurusToXML(self, thesaurus):
+        """
+        Convert a thesaurus instance to an XML Citation node
+
+        This is used when serialising elements 13 and 11
+        """
+
+        CI_Citation = self.doc.newDocNode(self.ns['gmd'], 'CI_Citation', None)
+        title = CI_Citation.newChild(None, 'title', None)
+        title.newChild(self.ns['gco'], 'CharacterString', escape(str(thesaurus.name)))
+        CI_Citation.addChild(self.dateToDateType(thesaurus.refdate, 'revision'))
+
+        return CI_Citation
 
     def extents(self):
         """
         Element 13 to XML
-        (a lot like Element 11 -- also TODO: unfinished (thesaurus date & dateType)
-        (not used in bodc, so untested!)
         """
-#        extent_name_nodes = []
-#        thesaurus_nodes = []
         nodes = []
-        thesauri = {}
+        extents = self.m.extents
+        if not extents:
+            return nodes
 
-        # collect thesauri
-        for node in self.m.extents:
-            if node.thesaurus in thesauri:
-                thesauri[node.thesaurus].add(node)
-            else:
-                thesauri[node.thesaurus] = set(node)
-
-        # loop through nodes in order of thesaurus
-        for thesaurus in theauri:
-            # thesaurus stuff...
-            geographicIdentifier = self.doc.newDocNode(self.ns['gmd'], 'geographicIdentifier', None)
+        for extent in extents:
+            geographicElement = self.doc.newDocNode(self.ns['gmd'], 'geographicElement', None)
+            EX_GeographicDescription = geographicElement.newChild(
+                None, 'EX_GeographicDescription', None)
+            EX_GeographicDescription.addChild(self.doc.newDocComment(
+                    'Extent - by Identifier'))
+            geographicIdentifier = EX_GeographicDescription.newChild(None, 'geographicIdentifier', None)
             MD_Identifier = geographicIdentifier.newChild(None, 'MD_Identifier', None)
             authority = MD_Identifier.newChild(None, 'authority', None)
-            CI_Citation = authority.newChild(None, 'CI_Citation', None)
-            title = CI_Citation.newChild(None, 'title', None)
+            authority.addChild(self.thesaurusToXML(extent.thesaurus))
 
-            # TODO: vocab lookup
-            CharacterString = title.newChild(self.ns['gco'], 'CharacterString', thesaurus)
-
-            date = CI_Citation.newChild(None, 'date', None)
-            CI_Date = date.newChild(None, 'CI_Date', None)
-            date2 = CI_Date.newChild(None, 'date', None)
-            Date = date2.newChild(self.ns['gco'], 'Date', 'to do')
-            dateType = date.newChild(None, 'dateType', None)
-            CI_DateTypeCode = date.newChild(None, 'CI_DateTypeCode', 'to do')
-            CI_DateTypeCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode')
-            CI_DateTypeCode.setProp('codeListValue', 'to do')
-
-            # code stuff (potentially many per thesaurus?)
-            for node in thesauri[thesaurus]:
-                code = MD_Identifier.newChild(None, 'code', None)
-                CharacterString = code.newChild(self.ns['gco'], 'CharacterString', node.keyword)
-
-            nodes.append(geographicIdentifier)
-        
+            code = MD_Identifier.newChild(None, 'code', None)
+            CharacterString = code.newChild(self.ns['gco'], 'CharacterString', escape(str(extent.term)))
+            nodes.append(geographicElement)
+            
         return nodes
 
     def verticalExtent(self):
         """
         Element 14 to XML
         """
+        vextent = self.m.vertical_extent
+        if not vextent:
+            return None
+
         verticalElement = self.doc.newDocNode(
             self.ns['gmd'], 'verticalElement', None)
         EX_VerticalExtent = verticalElement.newChild(
@@ -680,12 +756,12 @@ class XMLBuilder(object):
         minimumValue = EX_VerticalExtent.newChild(None, 'minimumValue', None)
         maximumValue = EX_VerticalExtent.newChild(None, 'maximumValue', None)
         minimumValue.setNsProp(
-            self.ns['gco'], 'Real', self.m.vertical_extent.minv)
+            self.ns['gco'], 'Real', escape(str(vextent.minimum)))
         maximumValue.setNsProp(
-            self.ns['gco'], 'Real', self.m.vertical_extent.maxv)
+            self.ns['gco'], 'Real', escape(str(vextent.maximum)))
         verticalCRS = EX_VerticalExtent.newChild(None, 'verticalCRS', None)
         verticalCRS.setNsProp(
-            self.ns['xlink'], 'href', self.m.vertical_extent.refid)
+            self.ns['xlink'], 'href', escape(str(vextent.crs)))
 
         return verticalElement
         
@@ -694,9 +770,9 @@ class XMLBuilder(object):
         Element 15 to XML
         """
 
-        code = None #self.m.vocabs(...)
-        codeSpace = None #self.m.vocabs(...) # self.m.spatial_reference_system
-
+        srs = self.m.srs
+        if not srs:
+            return None
 
         referenceSystemInfo = self.doc.newDocNode(
             self.ns['gmd'], 'referenceSystemInfo', None)
@@ -709,73 +785,47 @@ class XMLBuilder(object):
         code = RS_Identifier.newChild(None, 'code', None)
         CharacterString = code.newChild(
             self.ns['gco'], 'CharacterString',
-            self.m.spatial_reference_system)#.code)
+            escape(str(srs)))
         codeSpace = RS_Identifier.newChild(None, 'codeSpace', None)
         CharacterString = codeSpace.newChild(
-            self.ns['gco'], 'CharacterString', 'TODO')
-            #self.m.spatial_reference_system.codeSpace)
+            self.ns['gco'], 'CharacterString', 'OGP')
         return referenceSystemInfo
 
-    def temporalReference(self):
+    def temporalExtent(self):
         """
         Element 16.1 to XML
         """
-        extent = self.doc.newDocNode(self.ns['gmd'], 'extent', None)
-        EX_Extent = extent.newChild(None, 'EX_Extent', None)
-        temporalElement = EX_Extent.newChild(None, 'temporalElement', None)
-        extent2 = temporalElement.newChild(None, 'extent', None)
-        TimePeriod = extent2.newChild(self.ns['gml'], 'TimePeriod', None)
+
+        if not self.m.temporal_reference:
+            return None
+
+        ref = self.m.temporal_reference
+        temporalElement = self.doc.newDocNode(self.ns['gmd'], 'temporalElement', None)
+        EX_TemporalExtent = temporalElement.newChild(None, 'EX_TemporalExtent', None)
+        extent = EX_TemporalExtent.newChild(None, 'extent', None)
+        TimePeriod = extent.newChild(self.ns['gml'], 'TimePeriod', None)
         TimePeriod.setProp('id', 'medinMEDIN01')
-        TimePeriod.newChild(
-            None, 'beginPosition', self.m.temporal_reference.extent_begin)
-        TimePeriod.newChild(
-            None, 'endPosition', self.m.temporal_reference.extent_end)
-        return extent
+        TimePeriod.newChild(None, 'beginPosition', escape(str(ref.begin)))
+        if ref.end:
+            TimePeriod.newChild(None, 'endPosition', escape(str(ref.end)))
+
+        return temporalElement
         
     def temporalReferenceDates(self):
         """
         Element 16.[234] to XML
         """
-        # TODO: temporal citation publication date gets put in CI_Citation !! (assume creation and revision are the same)
+
         nodes = []
-        if self.m.temporal_reference.date_publication is not None:
-            date = self.doc.newDocNode(self.ns['gmd'], 'date', None)
-            CI_Date = date.newChild(None, 'CI_Date', None)
-            date2 = CI_Date.newChild(None, 'date', None)
-            Date = date2.newChild(self.ns['gco'], 'Date',
-                                  str(self.m.temporal_reference.date_publication))
-            dateType = CI_Date.newChild(None, 'dateType', None)
-            CI_DateTypeCode = dateType.newChild(None, 'CI_DateTypeCode',
-                                                'publication')
-            CI_DateTypeCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode')
-            CI_DateTypeCode.setProp('codeListValue', 'publication')
-            nodes.append(date)
+        ref = self.m.temporal_reference
+        if not ref:
+            return nodes
 
-        if self.m.temporal_reference.date_revision is not None:
-            date = self.doc.newDocNode(self.ns['gmd'], 'date', None)
-            CI_Date = date.newChild(None, 'CI_Date', None)
-            date2 = CI_Date.newChild(None, 'date', None)
-            Date = date2.newChild(self.ns['gco'], 'Date',
-                                  str(self.m.temporal_reference.date_revision))
-            dateType = CI_Date.newChild(None, 'dateType', None)
-            CI_DateTypeCode = dateType.newChild(None, 'CI_DateTypeCode',
-                                                'revision')
-            CI_DateTypeCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode')
-            CI_DateTypeCode.setProp('codeListValue', 'revision')
-            nodes.append(date)
-
-        if self.m.temporal_reference.date_creation is not None:
-            date = self.doc.newDocNode(self.ns['gmd'], 'date', None)
-            CI_Date = date.newChild(None, 'CI_Date', None)
-            date2 = CI_Date.newChild(None, 'date', None)
-            Date = date2.newChild(self.ns['gco'], 'Date',
-                                  str(self.m.temporal_reference.date_creation))
-            dateType = CI_Date.newChild(None, 'dateType', None)
-            CI_DateTypeCode = dateType.newChild(None, 'CI_DateTypeCode',
-                                                'creation')
-            CI_DateTypeCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode')
-            CI_DateTypeCode.setProp('codeListValue', 'creation')
-            nodes.append(date)
+        for code in ('publication', 'creation', 'revision'):
+            date = getattr(ref, code)
+            if not date:
+                continue
+            nodes.append(self.dateToDateType(date, code))
 
         return nodes
 
@@ -783,21 +833,27 @@ class XMLBuilder(object):
         """
         Element 17 to XML
         """
+        if not self.m.lineage:
+            return None
+
         lineage = self.doc.newDocNode(self.ns['gmd'], 'lineage', None)
         LI_Lineage = lineage.newChild(None, 'LI_Lineage', None)
         statement = LI_Lineage.newChild(None, 'statement', None)
-        statement.newChild(self.ns['gco'], 'CharacterString', self.m.lineage)
+        statement.newChild(self.ns['gco'], 'CharacterString', escape(str(self.m.lineage)))
         return lineage
 
     def spatialResolution(self):
         """
         Element 18 to XML
         """
+        if not self.m.spatial_resolutions:
+            return None
+        
         spatialResolution = self.doc.newDocNode(
             self.ns['gmd'], 'spatialResolution', None)
         MD_Resolution = spatialResolution.newChild(None, 'MD_Resolution', None)
 
-        for x in self.m.spatial_resolution:
+        for x in self.m.spatial_resolutions:
             if x.distance is not None:
                 distance = MD_Resolution.newChild(None, 'distance', None)
                 if x.distance == 'inapplicable':
@@ -805,7 +861,7 @@ class XMLBuilder(object):
                         self.ns['gco'], 'nilReason', 'inapplicable')
                 else:
                     Distance = distance.newChild(self.ns['gco'], 'Distance',
-                                                 x.distance)
+                                                 escape(str(x.distance)))
                     Distance.setProp('uom', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/uom/gmxUom.xml#m')
             elif x.equivalent_scale is not None:
                 equivalentScale = MD_Resolution.newChild(
@@ -815,16 +871,19 @@ class XMLBuilder(object):
                 denominator = MD_RepresentativeFraction.newChild(
                     None, 'denominator', None)
                 denominator.newChild(self.ns['gco'], 'Integer',
-                                     x.equivalent_scale)
+                                     escape(str(x.equivalent_scale)))
         return spatialResolution
 
-    def addtionalInfo(self):
+    def additionalInfo(self):
         """
         Element 19 to XML
         """
-        supplementalInformation = self.doc.newDocNode(
-            self.ns['gmd'], 'supplementalInformation', None)
-        supplementalInformation.newChild(self.ns['gco'], 'CharacterString', self.m.additional_info)
+        info = self.m.additional_info
+        if not info:
+            return None
+        
+        supplementalInformation = self.doc.newDocNode(self.ns['gmd'], 'supplementalInformation', None)
+        supplementalInformation.newChild(self.ns['gco'], 'CharacterString', escape(str(info)))
         return supplementalInformation
 
     def limitationsOnPublicAccess(self):
@@ -832,23 +891,26 @@ class XMLBuilder(object):
         Element 20 to XML
         """
         nodes = []
-        for node in self.m.limitations_public_access_vocab:
-            access_restriction = self.m.vocabs.getAccessRestrictionFromCode(node.ISOCODEID)
-            print "%d %s" % (node.ISOCODEID, access_restriction)
-            accessConstraints = self.doc.newDocNode(
-                self.ns['gmd'], 'accessConstraints', None)
-            MD_RestrictionCode = accessConstraints.newChild(
-                None, 'MD_RestrictionCode', access_restriction)
-            MD_RestrictionCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#MD_RestrictionCode')
-            MD_RestrictionCode.setProp('codeListValue', access_restriction)
-            nodes.append(accessConstraints)
 
-        for node in self.m.limitations_public_access:
-            otherConstraints = self.doc.newDocNode(
-                self.ns['gmd'], 'otherConstraints', None)
-            otherConstraints.newChild(self.ns['gco'], 'CharacterString',
-                                      str(node))
-            nodes.append(otherConstraints)
+        # process the controlled vocabulary terms
+        terms = self.m.access_constraint_terms
+        if terms:
+            for term in terms:
+                restriction = escape(term.term)
+                accessConstraints = self.doc.newDocNode(self.ns['gmd'], 'accessConstraints', None)
+                MD_RestrictionCode = accessConstraints.newChild(None, 'MD_RestrictionCode', restriction)
+                MD_RestrictionCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#MD_RestrictionCode')
+                MD_RestrictionCode.setProp('codeListValue', restriction)
+                nodes.append(accessConstraints)
+
+        # process the free text constraints
+        other = self.m.other_access_constraints
+        if other:
+            for text in other:
+                otherConstraints = self.doc.newDocNode(self.ns['gmd'], 'otherConstraints', None)
+                otherConstraints.newChild(self.ns['gco'], 'CharacterString', escape(str(text)))
+                nodes.append(otherConstraints)
+
         return nodes
 
     def conditionsForAccessAndUse(self):
@@ -856,110 +918,169 @@ class XMLBuilder(object):
         Element 21 to XML
         """
         nodes = []
-        for node in self.m.limitations_public_access:
-            resourceConstraints = self.doc.newDocNode(
-                self.ns['gmd'], 'resourceConstraints', None)
-            MD_Constraints = resourceConstraints.newChild(
-                None, 'MD_Constraints', None)
-            useLimitation = MD_Constraints.newChild(
-                None, 'useLimitation', None)
-            useLimitation.newChild(self.ns['gco'], 'CharacterString', str(node))
+        limitations = list(self.m.use_limitations)
+        if not limitations:
+            limitations.append('no conditions apply')
+        
+        for limitation in limitations:
+            resourceConstraints = self.doc.newDocNode(self.ns['gmd'], 'resourceConstraints', None)
+            MD_Constraints = resourceConstraints.newChild(None, 'MD_Constraints', None)
+            useLimitation = MD_Constraints.newChild(None, 'useLimitation', None)
+            useLimitation.newChild(self.ns['gco'], 'CharacterString', escape(str(limitation)))
             nodes.append(resourceConstraints)
+
         return nodes
 
-    def responsibleParties_pointsOfContact(self):
+    def responsiblePartyToXML(self, party):
         """
-        Element 22.4 to XML
-        TODO:
+        Converts a responsible party object to XML
         """
-        return []
-        contacts = []
-        for party in self.m.responsible_parties:
-            if self.m.vocabs.getContactRoleFromCode(party.ROLEID) == 'pointOfContact':
-                full_name = "%s %s" % (party.FIRSTNAME, party.SURNAME)
-                
 
+        CI_ResponsibleParty = self.doc.newDocNode(self.ns['gmd'], 'CI_ResponsibleParty', None)
 
-                contact = self.doc.newDocNode(
-                    self.ns['gmd'], 'contact', None)
-                CI_ResponsibleParty = contact.newChild(
-                    None, 'CI_ResponsibleParty', None)
-                individual_name = CI_ResponsibleParty.newChild(
-                    None, 'individual_name', None)
-                individual_name.newChild(
-                    self.ns['gco'], 'CharacterString', full_name)
+        organisation = party.organisation
+        if organisation:
+            organisationName = CI_ResponsibleParty.newChild(None, 'organisationName', None)
+            organisationName.newChild(self.ns['gco'], 'CharacterString', escape(str(organisation)))
 
-                if contact.PHONE or contact.address or contact.email:
-                    contactInfo = contact.newChild(None, 'contactInfo', None)
-                    CI_Contact = contactInfo.newChild(None, 'CI_Contact', None)
-                    if contact.PHONE:
-                        phone = CI_Contact.newChild(None, 'phone', None)
-                        CI_Telephone = phone.newChild(None, 'CI_Telephone', None)
-                        voice = CI_Telephone.newChild(None, 'voice', None)
-                        voice.newChild(self.ns['gco'], 'CharacterString', contact.PHONE)
-                    if contact.address:
-                        pass
-                    if contact.email:
-                        pass
+        individual = party.individual
+        if individual:
+            individualName = CI_ResponsibleParty.newChild(None, 'individualName', None)
+            individualName.newChild(self.ns['gco'], 'CharacterString', escape(str(individual)))
 
-                role = CI_ResponsibleParty.newChild(None, 'role', None)
-                CI_RoleCode = role.newChild(None, 'CI_RoleCode', 'pointOfContact')
-                CI_RoleCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#CI_RoleCode')
-                CI_RoleCode.setProp('codeListValue', 'pointOfContact')
+        position = party.position
+        if position:
+            positionName = CI_ResponsibleParty.newChild(None, 'positionName', None)
+            positionName.newChild(self.ns['gco'], 'CharacterString', escape(str(position)))
 
+        details = []
+        if party.telephone or party.fax:
+            phone = self.doc.newDocNode(self.ns['gmd'], 'phone', None)
+            CI_Telephone = phone.newChild(None, 'CI_Telephone', None)
+            if party.telephone:
+                voice = CI_Telephone.newChild(None, 'voice', None)
+                voice.newChild(self.ns['gco'], 'CharacterString', escape(str(party.telephone)))
+            if party.fax:
+                voice = CI_Telephone.newChild(None, 'facsimile', None)
+                voice.newChild(self.ns['gco'], 'CharacterString', escape(str(party.fax)))
+            details.append(phone)
 
-                contacts.append(contact)
-        return contacts
-    
-    def responsibleParties_originator(self):
+        if party.address or party.email:
+            address = self.doc.newDocNode(self.ns['gmd'], 'address', None)
+            CI_Address = address.newChild(None, 'CI_Address', None)
+            if party.address:
+                deliveryPoint = CI_Address.newChild(None, 'deliveryPoint', None)
+                deliveryPoint.newChild(self.ns['gco'], 'CharacterString', escape(str(party.address)))
+            if party.email:
+                electronicMailAddress = CI_Address.newChild(None, 'electronicMailAddress', None)
+                electronicMailAddress.newChild(self.ns['gco'], 'CharacterString', escape(str(party.email)))
+            details.append(address)
+
+        if details:
+            contactInfo = CI_ResponsibleParty.newChild(None, 'contactInfo', None)
+            CI_Contact = contactInfo.newChild(None, 'CI_Contact', None)
+            for node in details:
+                CI_Contact.addChild(node)
+
+        if party.role:
+            role = CI_ResponsibleParty.newChild(None, 'role', None)
+            value = escape(str(party.role.term))
+            CI_RoleCode = role.newChild(None, 'CI_RoleCode', value)
+            CI_RoleCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#CI_RoleCode')
+            CI_RoleCode.setProp('codeListValue', value)
+
+        return CI_ResponsibleParty
+
+    def pointsOfContact(self):
         """
-        Element 22.1 to XML
-        TODO:
+        Element 22.[12] to XML
         """
         
         contacts = []
-        for contact in self.m.responsible_parties:
-            if self.m.vocabs.getContactRoleFromCode(party.ROLEID) == 'originator':
-                pointOfContact = self.doc.newDocNode(self.ns['gmd'], 'pointOfContact', None)
-                CI_ResponsibleParty = pointOfContact.newChild(None, 'CI_ResponsibleParty', None)
-                organisationName = CI_ResponsibleParty.newChild(None, 'organisationName', None)
-                organisationName.newChild(self.ns['gco'], 'CharacterString', contact.ORGID)
-                positionName = CI_ResponsibleParty.newChild(None, 'positionName', None)
-                organisationName.newChild(self.ns['gco'], 'CharacterString', contact.POSITIONTITLE)
-                
-                if contact.PHONE or contact.address or contact.email:
-                    contactInfo = CI_ResponsibleParty.newChild(None, 'contactInfo', None)
-                    CI_Contact = contactInfo.newChild(None, 'CI_Contact', None)
-                    if contact.PHONE:
-                        pass
-                    if contact.address:
-                        pass
-                    if contact.email:
-                        pass
-                
-                role = CI_ResponsibleParty.newChild(None, 'role', None)
-                CI_RoleCode = role.newChild(None, 'CI_RoleCode', 'originator')
-                CI_RoleCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#CI_RoleCode')
-                CI_RoleCode.setProp('codeListValue', 'originator')
-                contacts.append(pointOfContact)
+        for party in self.m.responsible_parties:
+            if not party.role or party.role.term in ('pointOfContact', 'distributor'):
+                # we don't want the metadata point of contact or the originator
+                continue
+            
+            pointOfContact = self.doc.newDocNode(self.ns['gmd'], 'pointOfContact', None)
+            pointOfContact.addChild(self.responsiblePartyToXML(party))
+            contacts.append(pointOfContact)
+
         return contacts
     
-    def responsibleParties_distributors(self):
-        return []
+    def distributors(self):
+        """
+        Element 22.3 to XML
+        """
+        contacts = []
+        for party in self.m.responsible_parties:
+            if not party.role or party.role.term != 'distributor':
+                # we only want the distributor
+                continue
+
+            distributor = self.doc.newDocNode(self.ns['gmd'], 'distributor', None)
+            MD_Distributor = distributor.newChild(None, 'MD_Distributor', None)
+            distributorContact = MD_Distributor.newChild(None, 'distributorContact', None)
+            distributorContact.addChild(self.responsiblePartyToXML(party))
+            contacts.append(distributor)
+
+        return contacts
+
+    def metadataPointsOfContact(self):
+        """
+        Element 22.4 to XML
+        """
+        contacts = []
+        for party in self.m.responsible_parties:
+            if not party.role or party.role.term != 'pointOfContact':
+                # we only want the metadata point of contact
+                continue
+            
+            contact = self.doc.newDocNode(self.ns['gmd'], 'contact', None)
+            contact.addChild(self.responsiblePartyToXML(party))
+            contacts.append(contact)
+
+        return contacts    
+    
+    def dataFormats(self):
+        """
+        Element 23 to XML
+        """
+        nodes = []
+        for term in self.m.data_formats:
+            resourceFormat = self.doc.newDocNode(self.ns['gmd'], 'resourceFormat', None)
+            MD_Format = resourceFormat.newChild(None, 'MD_Format', None)
+            name = MD_Format.newChild(None, 'name', None)
+            name.newChild(self.ns['gco'], 'CharacterString', escape(str(term.term)))
+            version = MD_Format.newChild(None, 'version', None)
+            version.setNsProp(self.ns['gco'], 'nilReason', 'unknown')
+
+        return nodes
+
+    def frequencyOfUpdate(self):
+        """
+        Element 24 to XML
+        """
+        frequency = self.m.update_frequency
+        if not frequency:
+            return None
+
+        term = escape(str(frequency))
+        resourceMaintenance = self.doc.newDocNode(self.ns['gmd'], 'resourceMaintenance', None)
+        MD_MaintenanceInformation = resourceMaintenance.newChild(None, 'MD_MaintenanceInformation', None)
+        maintenanceAndUpdateFrequency = MD_MaintenanceInformation.newChild(None, 'maintenanceAndUpdateFrequency', None)
+        MD_MaintenanceFrequencyCode = maintenanceAndUpdateFrequency.newChild(None, 'MD_MaintenanceFrequencyCode', term)
+        MD_MaintenanceFrequencyCode.setProp("codeList", "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#MD_MaintenanceFrequencyCode")
+        MD_MaintenanceFrequencyCode.setProp("codeListValue", term)
+
+        return resourceMaintenance
 
     def dateStamp(self):
         """
         Element 26 to XML
         """
-        import datetime
-        
         dateStamp = self.doc.newDocNode(self.ns['gmd'], 'dateStamp', None)
-        sdate = self.m.date.isoformat()
-        if isinstance(self.m.date, datetime.datetime):
-            ele_name = 'DateTime'
-        else:
-            ele_name = 'Date'
-        date = dateStamp.newChild(self.ns['gco'], ele_name, sdate)
+        dateStamp.addChild(self.dateToXML(self.m.date))
         return dateStamp
 
     def metadataStandardName(self):
@@ -967,7 +1088,7 @@ class XMLBuilder(object):
         Element 27 to XML
         """
         metadataStandardName = self.doc.newDocNode(self.ns['gmd'], 'metadataStandardName', None)
-        characterString = metadataStandardName.newChild(self.ns['gco'], 'CharacterString', self.m.standard)
+        characterString = metadataStandardName.newChild(self.ns['gco'], 'CharacterString', escape(str(self.m.standard)))
         return metadataStandardName
 
     def metadataStandardVersion(self):
@@ -975,7 +1096,7 @@ class XMLBuilder(object):
         Element 28 to XML
         """
         metadataStandardVersion = self.doc.newDocNode(self.ns['gmd'], 'metadataStandardVersion', None)
-        characterString = metadataStandardVersion.newChild(self.ns['gco'], 'CharacterString', self.m.version)
+        characterString = metadataStandardVersion.newChild(self.ns['gco'], 'CharacterString', escape(str(self.m.version)))
         return metadataStandardVersion
 
     def language(self):
@@ -983,8 +1104,21 @@ class XMLBuilder(object):
         Element 29 to XML
         """
         language = self.doc.newDocNode(self.ns['gmd'], 'language', None)
-        languageCode = language.newChild(None, 'LanguageCode', self.m.language)
+        languageCode = language.newChild(None, 'LanguageCode', escape(str(self.m.language.name)))
         languageCode.setProp("codeList", "http://www.loc.gov/standards/iso639-2/php/code_list.php")
-        languageCode.setProp("codeListValue", "eng")
+        languageCode.setProp("codeListValue", escape(str(self.m.language.code)))
 
         return language
+
+    def parentIdentifier(self):
+        """
+        Element 30 to XML
+        """
+        parent_id = self.m.parent_id
+        if not parent_id:
+            return None
+
+        parentIdentifier = self.doc.newDocNode(self.ns['gmd'], 'parentIdentifier', None)
+        characterString = parentIdentifier.newChild(self.ns['gco'], 'CharacterString', escape(str(parent_id)))
+            
+        return parentIdentifier
