@@ -2,7 +2,7 @@
 class Version(object):
     """Representation of program version information"""
 
-    def __init__(self, major, minor, patch):
+    def __init__(self, major, minor, patch=0):
         self.major = major
         self.minor = minor
         self.patch = patch
@@ -12,11 +12,11 @@ class Version(object):
         """Class method to parse a version string into a Version object"""
         import re
 
-        m = re.search('(\d+)\.(\d+)\.(\d+)', version_str)
+        m = re.search('(\d+)\.(\d+)(?:\.(\d+))?', version_str)
         if not m:
             raise ValueError('The version string could not be parsed')
 
-        return cls(*[int(g) for g in m.groups()])
+        return cls(*[int(g) for g in m.groups() if g is not None])
 
     def __cmp__(self, other):
         """Compare one version with another"""
@@ -29,6 +29,9 @@ class Version(object):
 
     def __str__(self):
         return '%d.%d.%d' % (self.major, self.minor, self.patch)
+
+    def __repr__(self):
+        return "%s('%s')" % (self.__class__.__name__, self)
 
 def get_version(config_cmd):
     """Try and retrieve a program version"""
