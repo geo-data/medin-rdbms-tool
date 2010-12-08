@@ -255,6 +255,8 @@ def main():
     parser = OptionParser(usage=usage, version="%%prog %s" % str(__version__))
 
     # add the command line options
+    parser.add_option("-l", '--list-schemas', action="store_true",
+                      help="List the available schemas and exit")
     parser.add_option("-u", '--update-vocab', action="store_true",
                       help="Update the locally stored vocabularies from the internet")
     parser.add_option("-d", '--debug', action="store_true",
@@ -286,6 +288,19 @@ requirements.""")
     # turn on debugging
     if options.debug:
         medin.DEBUG = True
+
+    # list the available schemas
+    if options.list_schemas:
+        from glob import glob1
+        from os.path import splitext, dirname
+        schemas = [f for f in [splitext(f)[0] for f in glob1(dirname(medin.schema.__file__), '*.py')] if f != '__init__']
+        if not schemas:
+            print "No schemas could be found!"
+        else:
+            print "Available schemas:"
+            for schema in schemas:
+                print '  '+schema
+        return
 
     # start a vocabulary session
     vocabs = medin.vocabulary.Session()
