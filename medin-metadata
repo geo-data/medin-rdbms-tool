@@ -50,8 +50,6 @@ class Output(object):
             except ValidationError, e:
                 warn('The document is not valid: %s' % e.args[0])
                 return None
-            except Exception, e:
-                die('FATAL ERROR: ' + str(e))
             else:
                 log("The document is valid")
 
@@ -125,7 +123,7 @@ class DirOutput(Output):
     def __init__(self, directory=None, *args, **kwargs):
         super(DirOutput, self).__init__(*args, **kwargs)
 
-        from os.path import isdir, curdir, abspath
+        from os.path import curdir, abspath
         if not directory:
             directory = curdir
         self.directory = abspath(directory)
@@ -271,6 +269,8 @@ requirements.""")
         engine = create_engine(connstr, echo=medin.DEBUG)
     except ArgumentError, e:
         die('Bad CONNSTRING: %s' % str(e))
+    except ImportError, e:
+        die('The database driver could not be found for the connection \'%s\': %s' % (connstr, e))
 
     # try and load the schema plugin
     log('Attempting to load schema %s' % schema_name)
@@ -322,3 +322,7 @@ if __name__ == '__main__':
             pass                # it's a broken pipe
         else:
             raise
+    except KeyboardInterrupt:
+        die("\nProgram interrupted! Exiting...")
+    except Exception, e:
+        die('FATAL ERROR: %s' % e)
