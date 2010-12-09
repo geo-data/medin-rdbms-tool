@@ -13,3 +13,42 @@ MEDIN METADATA TOOL: TODO
 - Augment Element 11 (INSPIRE Keywords) by mapping from THESAURUSID 10
   keywords using P021 to P220 map, using THESAURUSID 6 to convert
   codes to text.
+
+- Augment Element 22 (Responsible Party) by using tool tables updated
+  from the web.
+
+- The tool has currently only been tested on Linux; it still needs to
+  be fully ported to Windows although proof of concept of this has
+  been undertaken.
+
+- Perform a test of the actual database schema that the user is
+  connecting to ensure it conforms to that specified as a tool option
+  (currently only the medin schema is available as a tool option).
+
+- The tool needs testing on a much broader input of data than that
+  supplied with the BODC development database, which has
+  inconsistencies (e.g. the frequency of update code specified in
+  METADATA.FREQMOD_ID is 47, which is not a recognised code). In this
+  and similar cases the tool is currently silent and forgiving,
+  expecting the validation to catch errors. However, it would be
+  useful if the tool emitted a warning when such situations are
+  encountered.
+
+- The first step in the validation process (checking against the ISO
+  TC 211 schema) is currently not working properly, meaning the
+  validation routine isn't useful at the moment. This is a libxml
+  specific issue that needs to be investigated.
+
+- Use the gmx:Anchor element within gmd:keyword elements where
+  appropriate. This element substitutes for gco:CharacterString and
+  works in the following way:
+
+  <gmd:keyword>
+    <gmx:Anchor xlink:href="http://vocab.ndg.nerc.ac.uk/term/P021/59/ZOOB">Zoobenthos taxonomy-related counts</gmx:Anchor>
+  </gmd:keyword>
+
+  instead of:
+
+  <gmd:keyword>
+    <gco:CharacterString>Zoobenthos taxonomy-related counts</gco:CharacterString>
+  </gmd:keyword>

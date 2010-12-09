@@ -1,0 +1,80 @@
+MEDIN METADATA RDBMS XML GENERATION TOOL
+========================================
+
+This package provides a tool to extract MEDIN XML metadata from a
+Relational Database Management System (RDBMS) and optionally validate
+it.
+
+PREREQUISITES
+-------------
+
+The tool requires Python version >= 2.6 and < 3. There are also some
+library dependencies that the tool relies on:
+
+- libxml2 (http://xmlsoft.org/python.html) for xml interaction
+
+- libxslt (http://xmlsoft.org/XSLT/python.html) for schematron
+  validation
+
+- suds (http://pypi.python.org/pypi/suds) for web service interaction
+
+- sqlalchemy (http://pypi.python.org/pypi/SQLAlchemy) for object
+  relational mapping
+
+- cx_Oracle (http://pypi.python.org/pypi/cx_Oracle) for connecting to
+  oracle databases. Other drivers would be needed for other database
+  systems. A list of supported drivers and databases can be found at
+  http://www.sqlalchemy.org/docs/core/engines.html#supported-dbapis
+
+To make life a little easier for testing copies of sqlalchemy and suds
+are supplied with the download. Note that these will *not* be
+installed on the system, however!
+
+DOWNLOAD
+--------
+
+The tool can be downloaded from
+http://www.geodata.soton.ac.uk/MEDIN_rdbms/metadata-tool.tar.gz
+
+INSTALLATION
+------------
+
+Untar the package download file and change into the directory. The
+following command installs the tool on your system:
+
+python setup.py install
+
+TESTING AND BASIC USAGE
+-----------------------
+
+Assuming you have libxml2 and libxslt installed and you have changed
+to the untarred package directory, you should be able to test the tool
+without installing it e.g.
+
+./medin-metadata --help
+
+Use of the tool should be reasonably straight forward if you're
+familiar with the command line and the --help option!
+
+It comes bundled with a copy of the EDMED database as a sqlite file
+which I have been using as a reference implementation for the medin
+schema defined at
+http://www.oceannet.org/marine_data_standards/medin_approved_standards/documents/medin_usermanaged_tables_user.doc
+
+You can access this database as follows:
+
+./medin-metadata medin example
+
+Assuming you have a database schema identical to the BODC EDMED one
+and are using an Oracle database called 'EDMED' on the machine
+'myhost' with the username 'me' and the password 'secret' you should
+be able to connect to it as follows:
+
+./medin-metadata medin oracle://me:secret@myhost/EDMED
+
+CONTACT
+-------
+
+Specific queries on regarding the tool can be directed to Homme
+Zwaagstra (hrz@geodata.soton.ac.uk). More general queries can be
+directed to <geodata@soton.ac.uk>.
