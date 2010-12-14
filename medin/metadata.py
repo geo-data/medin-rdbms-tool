@@ -138,6 +138,55 @@ class Metadata(object):
         name = str(self.unique_id)
         return uuid5(NAMESPACE_URL, name).hex
 
+    def mappedKeywords(self):
+        """
+        Return a list of keywords including their close matches
+
+        Currently P021 is mapped to P220
+        """
+
+        try:
+            terms = iter(self.keywords)
+        except TypeError:
+            return []
+
+        mapped = set()
+        for term in terms:
+            mapped.add(term)
+            if term.thesaurus_id == 10: # it's a Sea Data Parameter (P021)
+                for match in term.getMatches():
+                    if match.thesaurus_id == 6: # it's an Inspire Theme (P220)
+                        mapped.add(match)
+
+        return mapped
+
+    def mappedTopicCategories(self):
+        """
+        Return a list of topic categories
+
+        The list is generated from existing topic categories as well
+        as those mapped to topic categories from other vocabularies
+        (notably Sea Data Parameters P021)
+        """
+
+        try:
+            existing = iter(self.topic_categories)
+        except TypeError:
+            existing = []
+
+        try:
+            keywords = iter(self.keywords)
+        except TypeError:
+            keywords = []
+            
+        mapped = set(existing)
+        for term in keywords:
+            for match in term.getMatches():
+                if match.thesaurus_id == 3: # it's a Topic Category (P051)
+                    mapped.add(match)
+
+        return mapped
+            
 class ResourceLocator(object):
     """
     Element 5
@@ -199,13 +248,6 @@ class ResourceLanguage(object):
     def __init__(self, name, code):
         self.name = name
         self.code = code
-
-class Keyword(object):
-    """
-    Element 11
-    """
-    keyword = None
-    thesaurus = None
 
 class BoundingBox(object):
     """
@@ -597,13 +639,8 @@ class XMLBuilder(object):
         """
         Element 9 to XML
         """
-        try:
-            iterable = iter(self.m.topic_categories)
-        except TypeError:
-            return []
-
         topic_categories = []
-        for topic_category in iterable:
+        for topic_category in self.m.mappedTopicCategories():
             topicCategory = self.doc.newDocNode(self.ns['gmd'], 'topicCateogory', None)
             MD_TopicCategoryCode = topicCategory.newChild(None, 'MD_TopicCategoryCode', escape(topic_category.term))
             topic_categories.append(topicCategory)
@@ -637,7 +674,7 @@ class XMLBuilder(object):
             Anchor.setNsProp(self.ns['xlink'], 'title', 'NERC OAI Harvesting')
             nodes.append(descriptiveKeywords)
 
-        keywords = self.m.keywords
+        keywords = self.m.mappedKeywords()
         if not keywords and not nodes:
             return []
 

@@ -4,43 +4,50 @@
    2, 
    "ISO countries", 
    "http://vocab.ndg.nerc.ac.uk/list/C320/current", 
-   "ISO country codes from ISO3166-1 list taken from www.iso.org on 22/08/2007"
+   "ISO country codes from ISO3166-1 list taken from www.iso.org on 22/08/2007",
+   false
   ], 
   [
    3, 
    "ISO Topic Categories", 
    "http://vocab.ndg.nerc.ac.uk/list/P051/current", 
-   "Terms defined by ISO describing data themes. Used to populate the mandatory ISO19115 topic category field."
+   "Terms defined by ISO describing data themes. Used to populate the mandatory ISO19115 topic category field.",
+   true
   ], 
   [
    6, 
    "INSPIRE themes", 
    "http://vocab.ndg.nerc.ac.uk/list/P220/current", 
-   "Groupings of spatial data according to Annex I, II and III of the INSPIRE Directive [DS-D2.5]"
+   "Groupings of spatial data according to Annex I, II and III of the INSPIRE Directive [DS-D2.5]",
+   true
   ], 
   [
    10, 
    "SeaDataNet PDV", 
    "http://vocab.ndg.nerc.ac.uk/list/P021/current", 
-   "Terms describing fine-grained related groups of measurement phenomena designed to be used in dataset discovery interfaces."
+   "Terms describing fine-grained related groups of measurement phenomena designed to be used in dataset discovery interfaces.",
+   false
   ], 
   [
    11, 
    "Vertical Coverages", 
    "http://vocab.ndg.nerc.ac.uk/list/L131/current", 
-   "Terms used to describe data coverage over the vertical (z) co-ordinate."
+   "Terms used to describe data coverage over the vertical (z) co-ordinate.",
+   false
   ], 
   [
    13, 
    "SeaVoX water bodies", 
    "http://vocab.ndg.nerc.ac.uk/list/C191/current", 
-   "Terms specified by the SeaVoX vocabulary governance to describe coherent regions of the hydrosphere. Includes land masses enclosing freshwater bodies."
+   "Terms specified by the SeaVoX vocabulary governance to describe coherent regions of the hydrosphere. Includes land masses enclosing freshwater bodies.",
+   false
   ], 
   [
    16, 
    "MEDIN formats", 
    "http://vocab.ndg.nerc.ac.uk/list/M010/current", 
-   "Terms describing what types of data formats exist in a data set so a human can identify if the data is likely to be of use and select a tool to interrogate that data."
+   "Terms describing what types of data formats exist in a data set so a human can identify if the data is likely to be of use and select a tool to interrogate that data.",
+   false
   ]
  ], 
  "iso": [

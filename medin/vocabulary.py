@@ -1,5 +1,5 @@
 import sqlalchemy
-from sqlalchemy import Column, Integer, String, Date, ForeignKey, ForeignKeyConstraint
+from sqlalchemy import Table, Column, Integer, Boolean, String, Date, ForeignKey, ForeignKeyConstraint, Index
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
 
@@ -28,12 +28,12 @@ Base = declarative_base()
 class Thesaurus(Base):
     __tablename__ = 'thesauri'
 
-    id = Column(Integer, primary_key=True, autoincrement=False)
+    id = Column(Integer, primary_key=True, autoincrement=False, index=True)
     name = Column(String)
     refdate = Column(Date)
     description = Column(String)
 
-    discriminator = Column('type', String(30))
+    discriminator = Column('type', String(30), index=True)
     __mapper_args__ = {'polymorphic_on': discriminator}
 
     terms = relationship('Term',
@@ -57,10 +57,10 @@ class Thesaurus(Base):
 class Term(Base):
     __tablename__ = 'terms'
 
-    term = Column(String, primary_key=True)
-    thesaurus_id = Column(Integer, ForeignKey('thesauri.id', ondelete='CASCADE'), primary_key=True)
+    term = Column(String, primary_key=True, index=True)
+    thesaurus_id = Column(Integer, ForeignKey('thesauri.id', ondelete='CASCADE'), primary_key=True, index=True)
     definition = Column(String)
-    code = Column(String)
+    code = Column(String, index=True)
 
     __mapper_args__ = {'polymorphic_on': thesaurus_id}
 
@@ -123,12 +123,20 @@ class NERCThesaurus(Thesaurus):
     __tablename__ = 'nerc_thesauri'
     __mapper_args__ = {'polymorphic_identity': 'keyword'} # used to populate thesauri.type
 
-    id = Column(Integer, ForeignKey('thesauri.id', ondelete='CASCADE'), primary_key=True, autoincrement=False)
-    url = Column(String)
+    id = Column(Integer, ForeignKey('thesauri.id', ondelete='CASCADE'), primary_key=True, autoincrement=False, index=True)
+    url = Column(String, index=True)
+    mapped = Column(Boolean, default=False) # is the thesaurus mapped to any others?
 
     def __init__(self, id, name, url):
         super(NERCThesaurus, self).__init__(id, name)
         self.url = url
+
+# Mapping between different nerc terms
+term_maps_table = Table('nerc_term_maps', Base.metadata,
+    Column('left_key', String, ForeignKey('nerc_terms.key', ondelete='CASCADE'), primary_key=True),
+    Column('right_key', String, ForeignKey('nerc_terms.key', ondelete='CASCADE'), primary_key=True)
+)
+Index('idx_term_maps', term_maps_table.c.left_key, term_maps_table.c.right_key)
 
 class NERCTerm(Term):
     __tablename__ = 'nerc_terms'
@@ -138,7 +146,7 @@ class NERCTerm(Term):
         )
 
     # Vocabulary entry key
-    key = Column(String, primary_key=True)
+    key = Column(String, primary_key=True, index=True)
     # Vocabulary entry abbreviated term
     abbrv = Column(String)
 
@@ -146,6 +154,35 @@ class NERCTerm(Term):
     term = Column(String, nullable=False)
     thesaurus_id = Column(Integer, nullable=False)
 
+    # set up the mapping between matching terms
+    _left = relationship('NERCTerm', secondary=term_maps_table,
+                         primaryjoin=key==term_maps_table.c.left_key,
+                         secondaryjoin=term_maps_table.c.right_key==key,
+                         backref='_right'
+                         )
+
+    # getMatches and addMatches should probably be amalgamated into a
+    # custom sqlalchemy queryable property on this class called
+    # 'matches'. medin.metadata.Metadata.mappedKeywords and
+    # medin.metadata.Metadata.mappedTopicCategories could then use the
+    # results of a query returned by a method on the vocabulary
+    # Session object instead.
+    def getMatches(self):
+        """
+        Get all terms mapped to this one
+        """
+        matches = list(self._left)
+        matches.extend(self._right)
+        return matches
+
+    def addMatches(self, terms):
+        """
+        Map another term to this one
+
+        This associates the new term with this one
+        """
+        self._left.extend(terms)
+    
     def __init__(self, key, term, abbrv, definition=None):
         code = key.rsplit('/', 1)[-1]
         super(NERCTerm, self).__init__(code, term, definition)
@@ -210,6 +247,26 @@ class NERCVocab(object):
 
         return terms
 
+    def getMatches(self, urls):
+        """
+        Returns a dictionary mapping terms from vocabularies
+
+        urls is a list of vocabulary urls. Terms from other
+        vocabularies are mapped to terms within the requested
+        vocabularies via a dictionary representing a one-to-many
+        structure.
+        """
+        
+        maps = self.client.service.getMap(urls, 2, [], 'false')[0]
+        matches = {}
+        for entry in maps:
+            if not entry.narrowMatch:
+                continue
+            key = entry.entryKey
+            matches[key] = [e.entryKey for e in entry.narrowMatch]
+
+        return matches
+        
 class Session(object):
 
     def __init__(self):
@@ -250,10 +307,11 @@ class Session(object):
         # add the NERC thesauri
         today = date.today()
         thesauri = []
-        for id, name, url, description in thesauri_data['nerc']:
+        for id, name, url, description, mapped in thesauri_data['nerc']:
             thesaurus = NERCThesaurus(id, name, url)
             thesaurus.refdate = today
             thesaurus.description = description
+            thesaurus.mapped = mapped
             thesauri.append(thesaurus)
 
         # add the ISO thesauri
@@ -282,10 +340,20 @@ class Session(object):
 
         # update the NERC vocabularies
         nerc_vocab = NERCVocab()
+        urls = []
         for thesaurus in self.session.query(NERCThesaurus):
             log("Updating thesaurus %s..." % thesaurus.name)
             thesaurus.terms = nerc_vocab.getTerms(thesaurus.url)
             log("%s has %d entries" % (thesaurus.name, len(thesaurus.terms)))
+            if thesaurus.mapped:
+                urls.append(thesaurus.url)
+                
+        # set the term mappings
+        log("Setting term mappings")
+        for key, matches in nerc_vocab.getMatches(urls).items():
+            term = self.session.query(NERCTerm).filter(NERCTerm.key==key).one()
+            terms = self.session.query(NERCTerm).filter(NERCTerm.key.in_(matches))
+            term.addMatches(terms)
 
         self.session.commit()
 
