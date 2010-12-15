@@ -1,9 +1,10 @@
-import sys
-
 # ensure we're using UTF-8
 import sys
 sys = reload(sys)
 sys.setdefaultencoding('utf-8')
+
+import os
+import glob
 
 from distutils.core import setup
 from medin.util import check_environment
@@ -12,6 +13,30 @@ from medin import __version__
 def die(msg):
     sys.stderr.write(msg + "\n")
     sys.exit(1)
+
+# from http://www.py2exe.org/index.cgi/data_files
+def find_data_files(source,target,patterns):
+    """Locates the specified data-files and returns the matches
+    in a data_files compatible format.
+
+    source is the root of the source data tree.
+        Use '' or '.' for current directory.
+    target is the root of the target data tree.
+        Use '' or '.' for the distribution directory.
+    patterns is a sequence of glob-patterns for the
+        files you want to copy.
+    """
+    if glob.has_magic(source) or glob.has_magic(target):
+        raise ValueError("Magic not allowed in src, target")
+    ret = {}
+    for pattern in patterns:
+        pattern = os.path.join(source,pattern)
+        for filename in glob.glob(pattern):
+            if os.path.isfile(filename):
+                targetpath = os.path.join(target,os.path.relpath(filename,source))
+                path = os.path.dirname(targetpath)
+                ret.setdefault(path,[]).append(filename)
+    return sorted(ret.items())
 
 check_environment()
 
@@ -50,8 +75,27 @@ package_args = dict(
 # decide whether to build an exe or install
 try:
     import py2exe
+
+    # convert package_data to data_files
+    data_files = [('', ['README-Windows.txt'])]
+    for directory, patterns in package_args['package_data'].items():
+        data_files.extend(find_data_files(directory, directory, patterns))
     
-    package_args['console'] = ['medin-metadata']
+    package_args.update({
+            'console': ['medin-metadata'],
+            'data_files': data_files,
+            'options': {
+                'py2exe': {
+                    'packages': ['sqlalchemy.dialects.sqlite',
+                                 'sqlalchemy.dialects.oracle',
+                                 'cx_Oracle',
+                                 'medin.schema.medin'],
+                    "dll_excludes": ["oci.dll"], # exclude oracle version specific dll (http://www.py2exe.org/index.cgi/ExcludingDlls)
+                    "optimize": 2,
+                    'skip_archive': True
+                    }
+                }
+            })
 except ImportError:
     
     package_args.update(dict(

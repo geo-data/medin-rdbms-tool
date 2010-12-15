@@ -18,7 +18,7 @@ def get_engine():
     from medin import DEBUG
 
     dbname = abspath(join(dirname(__file__), 'data', 'vocabularies.sqlite'))
-    uri = 'sqlite:///%s' % abspath(dbname)
+    uri = 'sqlite:///'+dbname
     _engine = sqlalchemy.create_engine(uri, echo=DEBUG)
     _engine.execute('PRAGMA foreign_keys = ON') # we need referential integrity!
     return _engine
