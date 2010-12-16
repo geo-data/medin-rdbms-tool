@@ -107,3 +107,39 @@ def check_environment():
     version_min = Version(0, 3, 9)
     if version_cur < version_min:
         raise EnvironmentError('Your version of suds is %s, it needs to be at least %s' % (version_cur, version_min))
+
+def get_engine(name):
+    """
+    Returns a SQLAlchemy sqlite engine
+
+    The 'name' parameter refers to a sqlite database managed by the
+    medin module. This includes contacts.sqlite and
+    vocabularies.sqlite
+    """
+
+    # try and retrieve the cache of engines. The cache is stored in
+    # the get_engine object which should mean that it is global in
+    # scope.
+    try:
+        engines = getattr(get_engine, 'engines')
+    except AttributeError:
+        engines = dict()
+        setattr(get_engine, 'engines', engines)
+
+    # try and return the cached engine
+    try:
+        return engines[name]
+    except KeyError:
+        pass
+
+    from os.path import dirname, join, abspath
+    from medin import DEBUG
+    from sqlalchemy import create_engine
+
+    dbname = abspath(join(dirname(__file__), 'data', name))
+    uri = 'sqlite:///'+dbname
+    engine = create_engine(uri, echo=DEBUG)
+    engine.execute('PRAGMA foreign_keys = ON') # we need referential integrity!
+    engines[name] = engine                     # cache the engine
+    
+    return engine

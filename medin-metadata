@@ -192,8 +192,10 @@ def main():
     # add the command line options
     parser.add_option("-l", '--list-schemas', action="store_true",
                       help="List the available schemas and exit")
-    parser.add_option("-u", '--update-vocab', action="store_true",
+    parser.add_option("-u", '--update-vocabs', action="store_true",
                       help="Update the locally stored vocabularies from the internet")
+    parser.add_option("-c", '--update-contacts', action="store_true",
+                      help="Update the locally stored contacts from the internet")
     parser.add_option("-d", '--debug', action="store_true",
                       help="Enable debugging output")
     parser.add_option("-i", '--metadata-id', action="append",
@@ -214,7 +216,7 @@ requirements.""")
     try:
         schema_name, connstr = args
     except ValueError:
-        if not options.update_vocab and not options.list_schemas:
+        if not options.update_vocabs and not options.list_schemas and not options.update_contacts:
             parser.error("incorrect number of arguments")
         schema_name = connstr = None
 
@@ -240,19 +242,28 @@ requirements.""")
                 print '  '+schema
         return
 
-    # start a vocabulary session
+    # start vocabulary and contact sessions
     import medin.vocabulary
+    import medin.contact
     vocabs = medin.vocabulary.Session()
+    contacts = medin.contact.Session()
 
     # update the vocabularies
-    if options.update_vocab:
+    if options.update_vocabs:
         log("Setting up vocabularies")
         vocabs.create()    # clear and create the schema and hard-coded data
         log("Updating vocabularies from online sources")
         vocabs.update()    # update the online vocabs
 
+    # update the contacts
+    if options.update_contacts:
+        log("Setting up contacts")
+        contacts.create()    # clear and create the schema
+        log("Updating contacts from online sources")
+        contacts.update()    # update the online contacts
+
     if not schema_name:
-        # the user only asked for the vocabs to be updated
+        # the user only asked for vocabs and/or contacts to be updated
         return
 
     # create the database engine
@@ -281,7 +292,7 @@ requirements.""")
         die('The schema is not supported: %s' % schema_name)
 
     # retrieve the metadata
-    provider = schema_module.Session(engine, vocabs)
+    provider = schema_module.Session(engine, vocabs, contacts)
     if options.metadata_id:
         ids = set(options.metadata_id)
 

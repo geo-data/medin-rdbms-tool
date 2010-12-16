@@ -19,6 +19,7 @@ class.
 from medin.schema import Session
 import medin.metadata as metadata
 from medin.vocabulary import Session as Vocabulary
+from medin.contact import Session as Contacts
 from sqlalchemy.orm import reconstructor
 import datetime
 
@@ -41,6 +42,7 @@ class Metadata(metadata.Metadata):
     def __init__(self):
         super(Metadata, self).__init__(self)
         self.vocabs = Vocabulary()
+        self.contacts = Contacts()
         self.terms = []
     
     # Ensure the object is fully instantiated by sqlalchemy when
@@ -50,6 +52,7 @@ class Metadata(metadata.Metadata):
         # default values
         self.language = metadata.ResourceLanguage('English', 'eng')
         self.vocabs = Vocabulary()
+        self.contacts = Contacts()
 
     @property
     def resource_type(self):
@@ -143,9 +146,24 @@ class Metadata(metadata.Metadata):
         if self._RESPARTY != self.RESPARTY:
             responsible_parties = []
             for party in self.RESPARTY:
+                # get the role
                 term = self.vocabs.getContactRoleFromCode(int(party.ROLEID))
                 party.role = term
-                if term: responsible_parties.append(party)
+                if not term:
+                    continue
+
+                # get the contact information
+                contact = self.contacts.getOrganisation(int(party.CONTACTID))
+                if party.CONTACTID != party.ORGID:
+                    org = self.contacts.getOrganisation(int(party.ORGID))
+                else:
+                    org = contact
+                if org: party.organisation = org.name
+                if contact:
+                    for attr in ('address', 'zipcode', 'city', 'state', 'country', 'website', 'phone', 'fax', 'email'):
+                        setattr(party, attr, getattr(contact, attr))
+                    
+                responsible_parties.append(party)
 
             self._responsible_parties = responsible_parties
             self._RESPARTY = self.RESPARTY

@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" xmlns:tns="ns_ws_edmo" xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/" xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" targetNamespace="ns_ws_edmo" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+  <wsdl:types>
+    <s:schema elementFormDefault="qualified" targetNamespace="ns_ws_edmo">
+      <s:element name="ws_edmo_get_list">
+        <s:complexType />
+      </s:element>
+      <s:element name="ws_edmo_get_listResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="ws_edmo_get_listResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ws_edmo_get_detail">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="n_code" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ws_edmo_get_detailResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="ws_edmo_get_detailResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ws_edmo_name_to_code">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="c_name" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ws_edmo_name_to_codeResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="ws_edmo_name_to_codeResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ws_edmo_active_countries">
+        <s:complexType />
+      </s:element>
+      <s:element name="ws_edmo_active_countriesResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="ws_edmo_active_countriesResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ws_edmo_active_characters">
+        <s:complexType />
+      </s:element>
+      <s:element name="ws_edmo_active_charactersResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="ws_edmo_active_charactersResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ws_edmo_get_query">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="short_list" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="free_search" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="first_character" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="country_number" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="upper_left_lat" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="upper_left_long" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="lower_right_lat" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="lower_right_long" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="last_update" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ws_edmo_get_queryResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="ws_edmo_get_queryResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ws_edmo_get_list_collator">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="collator_id" type="s:int" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ws_edmo_get_list_collatorResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="ws_edmo_get_list_collatorResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+    </s:schema>
+  </wsdl:types>
+  <wsdl:message name="ws_edmo_get_listSoapIn">
+    <wsdl:part name="parameters" element="tns:ws_edmo_get_list" />
+  </wsdl:message>
+  <wsdl:message name="ws_edmo_get_listSoapOut">
+    <wsdl:part name="parameters" element="tns:ws_edmo_get_listResponse" />
+  </wsdl:message>
+  <wsdl:message name="ws_edmo_get_detailSoapIn">
+    <wsdl:part name="parameters" element="tns:ws_edmo_get_detail" />
+  </wsdl:message>
+  <wsdl:message name="ws_edmo_get_detailSoapOut">
+    <wsdl:part name="parameters" element="tns:ws_edmo_get_detailResponse" />
+  </wsdl:message>
+  <wsdl:message name="ws_edmo_name_to_codeSoapIn">
+    <wsdl:part name="parameters" element="tns:ws_edmo_name_to_code" />
+  </wsdl:message>
+  <wsdl:message name="ws_edmo_name_to_codeSoapOut">
+    <wsdl:part name="parameters" element="tns:ws_edmo_name_to_codeResponse" />
+  </wsdl:message>
+  <wsdl:message name="ws_edmo_active_countriesSoapIn">
+    <wsdl:part name="parameters" element="tns:ws_edmo_active_countries" />
+  </wsdl:message>
+  <wsdl:message name="ws_edmo_active_countriesSoapOut">
+    <wsdl:part name="parameters" element="tns:ws_edmo_active_countriesResponse" />
+  </wsdl:message>
+  <wsdl:message name="ws_edmo_active_charactersSoapIn">
+    <wsdl:part name="parameters" element="tns:ws_edmo_active_characters" />
+  </wsdl:message>
+  <wsdl:message name="ws_edmo_active_charactersSoapOut">
+    <wsdl:part name="parameters" element="tns:ws_edmo_active_charactersResponse" />
+  </wsdl:message>
+  <wsdl:message name="ws_edmo_get_querySoapIn">
+    <wsdl:part name="parameters" element="tns:ws_edmo_get_query" />
+  </wsdl:message>
+  <wsdl:message name="ws_edmo_get_querySoapOut">
+    <wsdl:part name="parameters" element="tns:ws_edmo_get_queryResponse" />
+  </wsdl:message>
+  <wsdl:message name="ws_edmo_get_list_collatorSoapIn">
+    <wsdl:part name="parameters" element="tns:ws_edmo_get_list_collator" />
+  </wsdl:message>
+  <wsdl:message name="ws_edmo_get_list_collatorSoapOut">
+    <wsdl:part name="parameters" element="tns:ws_edmo_get_list_collatorResponse" />
+  </wsdl:message>
+  <wsdl:portType name="edmo_webserviceSoap">
+    <wsdl:operation name="ws_edmo_get_list">
+      <wsdl:input message="tns:ws_edmo_get_listSoapIn" />
+      <wsdl:output message="tns:ws_edmo_get_listSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="ws_edmo_get_detail">
+      <wsdl:input message="tns:ws_edmo_get_detailSoapIn" />
+      <wsdl:output message="tns:ws_edmo_get_detailSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="ws_edmo_name_to_code">
+      <wsdl:input message="tns:ws_edmo_name_to_codeSoapIn" />
+      <wsdl:output message="tns:ws_edmo_name_to_codeSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="ws_edmo_active_countries">
+      <wsdl:input message="tns:ws_edmo_active_countriesSoapIn" />
+      <wsdl:output message="tns:ws_edmo_active_countriesSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="ws_edmo_active_characters">
+      <wsdl:input message="tns:ws_edmo_active_charactersSoapIn" />
+      <wsdl:output message="tns:ws_edmo_active_charactersSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="ws_edmo_get_query">
+      <wsdl:input message="tns:ws_edmo_get_querySoapIn" />
+      <wsdl:output message="tns:ws_edmo_get_querySoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="ws_edmo_get_list_collator">
+      <wsdl:input message="tns:ws_edmo_get_list_collatorSoapIn" />
+      <wsdl:output message="tns:ws_edmo_get_list_collatorSoapOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="edmo_webserviceSoap" type="tns:edmo_webserviceSoap">
+    <wsdl:documentation>
+      <wsi:Claim conformsTo="http://ws-i.org/profiles/basic/1.1" xmlns:wsi="http://ws-i.org/schemas/conformanceClaim/" />
+    </wsdl:documentation>
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="ws_edmo_get_list">
+      <soap:operation soapAction="ns_ws_edmo/ws_edmo_get_list" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ws_edmo_get_detail">
+      <soap:operation soapAction="ns_ws_edmo/ws_edmo_get_detail" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ws_edmo_name_to_code">
+      <soap:operation soapAction="ns_ws_edmo/ws_edmo_name_to_code" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ws_edmo_active_countries">
+      <soap:operation soapAction="ns_ws_edmo/ws_edmo_active_countries" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ws_edmo_active_characters">
+      <soap:operation soapAction="ns_ws_edmo/ws_edmo_active_characters" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ws_edmo_get_query">
+      <soap:operation soapAction="ns_ws_edmo/ws_edmo_get_query" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ws_edmo_get_list_collator">
+      <soap:operation soapAction="ns_ws_edmo/ws_edmo_get_list_collator" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="edmo_webserviceSoap12" type="tns:edmo_webserviceSoap">
+    <soap12:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="ws_edmo_get_list">
+      <soap12:operation soapAction="ns_ws_edmo/ws_edmo_get_list" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ws_edmo_get_detail">
+      <soap12:operation soapAction="ns_ws_edmo/ws_edmo_get_detail" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ws_edmo_name_to_code">
+      <soap12:operation soapAction="ns_ws_edmo/ws_edmo_name_to_code" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ws_edmo_active_countries">
+      <soap12:operation soapAction="ns_ws_edmo/ws_edmo_active_countries" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ws_edmo_active_characters">
+      <soap12:operation soapAction="ns_ws_edmo/ws_edmo_active_characters" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ws_edmo_get_query">
+      <soap12:operation soapAction="ns_ws_edmo/ws_edmo_get_query" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ws_edmo_get_list_collator">
+      <soap12:operation soapAction="ns_ws_edmo/ws_edmo_get_list_collator" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="edmo_webservice">
+    <wsdl:port name="edmo_webserviceSoap" binding="tns:edmo_webserviceSoap">
+      <soap:address location="http://seadatanet.maris2.nl/ws/ws_edmo.asmx" />
+    </wsdl:port>
+    <wsdl:port name="edmo_webserviceSoap12" binding="tns:edmo_webserviceSoap12">
+      <soap12:address location="http://seadatanet.maris2.nl/ws/ws_edmo.asmx" />
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

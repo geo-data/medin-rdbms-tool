@@ -2,26 +2,7 @@ import sqlalchemy
 from sqlalchemy import Table, Column, Integer, Boolean, String, Date, ForeignKey, ForeignKeyConstraint, Index
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
-
-def get_engine():
-    """
-    Returns the vocabulary SQLAlchemy engine
-    """
-
-    global _engine
-    try:
-        return _engine
-    except NameError:
-        pass
-
-    from os.path import dirname, join, abspath
-    from medin import DEBUG
-
-    dbname = abspath(join(dirname(__file__), 'data', 'vocabularies.sqlite'))
-    uri = 'sqlite:///'+dbname
-    _engine = sqlalchemy.create_engine(uri, echo=DEBUG)
-    _engine.execute('PRAGMA foreign_keys = ON') # we need referential integrity!
-    return _engine
+from medin.util import get_engine
 
 Base = declarative_base()
 
@@ -272,7 +253,7 @@ class Session(object):
     def __init__(self):
         from sqlalchemy.orm import sessionmaker
 
-        self.engine = get_engine()
+        self.engine = get_engine('vocabularies.sqlite')
         Session = sessionmaker(bind=self.engine)
         
         self.session = Session()

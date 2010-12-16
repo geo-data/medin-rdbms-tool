@@ -7,10 +7,12 @@ class Session(object):
     Abstract base class for interacting with a schema
     """
     vocabs = None
+    contacts = None
     sess = None
 
-    def __init__(self, engine, vocabs):
+    def __init__(self, engine, vocabs, contacts):
         self.vocabs = vocabs
+        self.contacts = contacts
 
         self.setMapping()
 

@@ -331,7 +331,12 @@ class ResponsibleParty(object):
     individual = None
     organisation = None
     address = None
-    telephone = None
+    city = None
+    zipcode = None
+    state = None
+    country = None
+    website = None
+    phone = None
     fax = None
     email = None
     role = None
@@ -1007,26 +1012,46 @@ class XMLBuilder(object):
             positionName.newChild(self.ns['gco'], 'CharacterString', escape(str(position)))
 
         details = []
-        if party.telephone or party.fax:
+        if party.phone or party.fax:
             phone = self.doc.newDocNode(self.ns['gmd'], 'phone', None)
             CI_Telephone = phone.newChild(None, 'CI_Telephone', None)
-            if party.telephone:
+            if party.phone:
                 voice = CI_Telephone.newChild(None, 'voice', None)
-                voice.newChild(self.ns['gco'], 'CharacterString', escape(str(party.telephone)))
+                voice.newChild(self.ns['gco'], 'CharacterString', escape(str(party.phone)))
             if party.fax:
                 voice = CI_Telephone.newChild(None, 'facsimile', None)
                 voice.newChild(self.ns['gco'], 'CharacterString', escape(str(party.fax)))
             details.append(phone)
 
-        if party.address or party.email:
-            address = self.doc.newDocNode(self.ns['gmd'], 'address', None)
-            CI_Address = address.newChild(None, 'CI_Address', None)
-            if party.address:
+        if party.website:
+            onlineResource = self.doc.newDocNode(self.ns['gmd'], 'onlineResource', None)
+            CI_OnlineResource = onlineResource.newChild(None, 'CI_OnlineResource', None)
+            linkage = CI_OnlineResource.newChild(None, 'linkage', None)
+            linkage.newChild(None, 'URL', escape(str(party.website)))
+            details.append(onlineResource)
+
+        address = self.doc.newDocNode(self.ns['gmd'], 'address', None)
+        CI_Address = address.newChild(None, 'CI_Address', None)
+        if party.address:
+            for point in party.address.splitlines():
                 deliveryPoint = CI_Address.newChild(None, 'deliveryPoint', None)
-                deliveryPoint.newChild(self.ns['gco'], 'CharacterString', escape(str(party.address)))
-            if party.email:
-                electronicMailAddress = CI_Address.newChild(None, 'electronicMailAddress', None)
-                electronicMailAddress.newChild(self.ns['gco'], 'CharacterString', escape(str(party.email)))
+                deliveryPoint.newChild(self.ns['gco'], 'CharacterString', escape(str(point)))
+        if party.city:
+            deliveryPoint = CI_Address.newChild(None, 'city', None)
+            deliveryPoint.newChild(self.ns['gco'], 'CharacterString', escape(str(party.city)))
+        if party.state:
+            deliveryPoint = CI_Address.newChild(None, 'administrativeArea', None)
+            deliveryPoint.newChild(self.ns['gco'], 'CharacterString', escape(str(party.state)))
+        if party.zipcode:
+            deliveryPoint = CI_Address.newChild(None, 'postalCode', None)
+            deliveryPoint.newChild(self.ns['gco'], 'CharacterString', escape(str(party.zipcode)))
+        if party.country:
+            deliveryPoint = CI_Address.newChild(None, 'country', None)
+            deliveryPoint.newChild(self.ns['gco'], 'CharacterString', escape(str(party.country)))
+        if party.email:
+            electronicMailAddress = CI_Address.newChild(None, 'electronicMailAddress', None)
+            electronicMailAddress.newChild(self.ns['gco'], 'CharacterString', escape(str(party.email)))
+        if CI_Address.children:
             details.append(address)
 
         if details:
