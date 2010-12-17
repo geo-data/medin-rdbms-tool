@@ -5,6 +5,21 @@ import sys
 sys = reload(sys)
 sys.setdefaultencoding('utf-8')
 
+DEBUG = False                           # controls debugging output
+
+# replace the default warning display function with our own
+import warnings
+from warnings import showwarning as defaultwarning
+def showwarning(*args, **kwargs):
+    """
+    Replacement for default warnings.showwarning
+
+    This function only shows warnings when in debugging mode
+    """
+    global DEBUG
+    if DEBUG: defaultwarning(*args, **kwargs)
+warnings.showwarning = showwarning
+
 def warn(msg):
     """Output a message to standard error"""
 
@@ -220,14 +235,15 @@ requirements.""")
             parser.error("incorrect number of arguments")
         schema_name = connstr = None
 
+    # turn on debugging
+    global DEBUG
+    if options.debug:
+        DEBUG = medin.DEBUG = True
+
     try:
         check_environment()
     except EnvironmentError, e:
         die(str(e))
-
-    # turn on debugging
-    if options.debug:
-        medin.DEBUG = True
 
     # list the available schemas
     if options.list_schemas:
@@ -335,5 +351,8 @@ if __name__ == '__main__':
             raise
     except KeyboardInterrupt:
         die("\nProgram interrupted! Exiting...")
-    except Exception, e:
-        die('FATAL ERROR: %s' % e)
+    except Exception, e: 
+        if DEBUG:
+            raise
+        else:
+            die('FATAL ERROR: %s' % e)

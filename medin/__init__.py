@@ -13,5 +13,5 @@ def log(msg):
     """
     Log a debugging message to STDOUT
     """
-    global DEBUG
+    from medin import DEBUG
     if DEBUG: print msg

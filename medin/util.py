@@ -54,6 +54,7 @@ def get_version(config_cmd):
 def check_environment():
     """Check whether the system supports the program requirements"""
     import sys, os
+    from warnings import warn
     
     # ensure we've got libxml2 and libxslt on the system
     try:
@@ -85,16 +86,24 @@ def check_environment():
     # version is present.
     if os.name == 'posix':
         # check we've got minimum libxml2 support
-        version_cur = get_version('xml2-config')
-        version_min = Version(2, 6, 26)
-        if version_cur < version_min:
-            raise EnvironmentError('Your version of libxml2 is %s, it needs to be at least %s' % (version_cur, version_min))
+        try:
+            version_cur = get_version('xml2-config')
+        except EnvironmentError, e:
+            warn(str(e), RuntimeWarning)
+        else:
+            version_min = Version(2, 6, 26)
+            if version_cur < version_min:
+                raise EnvironmentError('Your version of libxml2 is %s, it needs to be at least %s' % (version_cur, version_min))
 
         # check we've got minimum libxslt support
-        version_cur = get_version('xslt-config')
-        version_min = Version(1, 1, 17)
-        if version_cur < version_min:
-            raise EnvironmentError('Your version of libxslt is %s, it needs to be at least %s' % (version_cur, version_min))
+        try:
+            version_cur = get_version('xslt-config')
+        except EnvironmentError, e:
+            warn(str(e), RuntimeWarning)
+        else:
+            version_min = Version(1, 1, 17)
+            if version_cur < version_min:
+                raise EnvironmentError('Your version of libxslt is %s, it needs to be at least %s' % (version_cur, version_min))
 
     # check we've got minimum sqlalchemy support
     version_cur = Version.parse(sqlalchemy.__version__)
