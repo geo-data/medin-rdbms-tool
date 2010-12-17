@@ -6,10 +6,6 @@ MEDIN METADATA TOOL: TODO
   where appropriate, defaulting to the system time if not available
   (i.e. in the case of ISO terms).
 
-- Perform a test of the actual database schema that the user is
-  connecting to ensure it conforms to that specified as a tool option
-  (currently only the medin schema is available as a tool option).
-
 - The tool needs testing on a much broader input of data than that
   supplied with the BODC development database, which has
   inconsistencies (e.g. the frequency of update code specified in

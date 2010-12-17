@@ -307,8 +307,15 @@ requirements.""")
     except ImportError:
         die('The schema is not supported: %s' % schema_name)
 
-    # retrieve the metadata
+    # verify the schema plugin against the database schema
     provider = schema_module.Session(engine, vocabs, contacts)
+    errors = provider.verifySchema()
+    if errors:
+        msg = """The database schema does not match the %s schema:
+%s""" % (schema_name, "\n".join(errors))
+        die(msg)
+
+    # retrieve the metadata
     if options.metadata_id:
         ids = set(options.metadata_id)
 
