@@ -382,21 +382,21 @@ class XMLBuilder(object):
         """
 
         self.root.addChild(self.fileIdentifier())
-        self.root.addChild(self.identificationInfo())
+        self.root.addChild(self.language())
+        node = self.parentIdentifier()
+        if node: self.root.addChild(node)
         node = self.resourceType()
         if node: self.root.addChild(node)
-        self.root.addChild(self.distributionInfo())
-        node = self.spatialReferenceSystem()
-        if node: self.root.addChild(node)
-        self.root.addChild(self.dataQualityInfo())
         for node in self.metadataPointsOfContact():
             self.root.addChild(node)
         self.root.addChild(self.dateStamp())
         self.root.addChild(self.metadataStandardName())
         self.root.addChild(self.metadataStandardVersion())
-        self.root.addChild(self.language())
-        node = self.parentIdentifier()
+        node = self.spatialReferenceSystem()
         if node: self.root.addChild(node)
+        self.root.addChild(self.identificationInfo())
+        self.root.addChild(self.distributionInfo())
+        self.root.addChild(self.dataQualityInfo())
         
         return self.doc
 
@@ -421,16 +421,15 @@ class XMLBuilder(object):
         CI_Citation.addChild(self.title())
         for node in self.alternativeTitles():
             CI_Citation.addChild(node)
+        for node in self.temporalReferenceDates():
+            CI_Citation.addChild(node)
         CI_Citation.addChild(self.identifier())
         MD_DataIdentification.addChild(self.abstract())
-        MD_DataIdentification.addChild(self.extent())
-        for node in self.resourceLanguages():
+
+        for node in self.pointsOfContact():
             MD_DataIdentification.addChild(node)
 
-        SV_ServiceIdentification = self.serviceIdentification()
-        if SV_ServiceIdentification: MD_DataIdentification.addChild(SV_ServiceIdentification)
-
-        for node in self.topicCategories():
+        for node in self.dataFormats():
             MD_DataIdentification.addChild(node)
 
         nodes = self.keywords()
@@ -438,28 +437,31 @@ class XMLBuilder(object):
             for node in nodes:
                 MD_DataIdentification.addChild(node)
 
-        for node in self.temporalReferenceDates():
-            CI_Citation.addChild(node)
-
-        node = self.spatialResolution()
-        if node: MD_DataIdentification.addChild(node)
-
-        node = self.additionalInfo()
-        if node: MD_DataIdentification.addChild(node)
-
         resourceConstraints = MD_DataIdentification.newChild(
             None, 'resourceConstraints', None)
         MD_LegalConstraints = resourceConstraints.newChild(
             None, 'MD_LegalConstraints', None)
         for node in self.limitationsOnPublicAccess():
             MD_LegalConstraints.addChild(node)
+
+        node = self.spatialResolution()
+        if node: MD_DataIdentification.addChild(node)
+
+        for node in self.resourceLanguages():
+            MD_DataIdentification.addChild(node)
+
+        for node in self.topicCategories():
+            MD_DataIdentification.addChild(node)
+
+        MD_DataIdentification.addChild(self.extent())
+
+        SV_ServiceIdentification = self.serviceIdentification()
+        if SV_ServiceIdentification: MD_DataIdentification.addChild(SV_ServiceIdentification)
+
+        node = self.additionalInfo()
+        if node: MD_DataIdentification.addChild(node)
+
         for node in self.conditionsForAccessAndUse():
-            MD_DataIdentification.addChild(node)
-
-        for node in self.pointsOfContact():
-            MD_DataIdentification.addChild(node)
-
-        for node in self.dataFormats():
             MD_DataIdentification.addChild(node)
 
         node = self.frequencyOfUpdate()
@@ -493,10 +495,11 @@ class XMLBuilder(object):
         DQ_DataQuality.addChild(self.doc.newDocComment(
                 "Scope - Required by ISO 19115 constraint"))
         scope = DQ_DataQuality.newChild(None, 'scope', None)
-        SQ_Scope = scope.newChild(None, 'SQ_Scope', None)
-        level = SQ_Scope.newChild(None, 'level', 'dataset')
-        level.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#MD_ScopeCode')
-        level.setProp('codeListValue', 'dataset')
+        DQ_Scope = scope.newChild(None, 'DQ_Scope', None)
+        level = DQ_Scope.newChild(None, 'level', None)
+        MD_ScopeCode = level.newChild(None, 'MD_ScopeCode', 'dataset')
+        MD_ScopeCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#MD_ScopeCode')
+        MD_ScopeCode.setProp('codeListValue', 'dataset')
 
         lineage = self.lineage()
         if lineage:
@@ -529,12 +532,12 @@ class XMLBuilder(object):
         for node in self.extents():
             EX_Extent.addChild(node)
 
-        node = self.verticalExtent()
-        if node: EX_Extent.addChild(node)
-
         node = self.temporalExtent()
         if node: EX_Extent.addChild(node) 
             
+        node = self.verticalExtent()
+        if node: EX_Extent.addChild(node)
+
         return extent
 
     def title(self):
@@ -602,10 +605,11 @@ class XMLBuilder(object):
         """
         unique_id = self.m.unique_id
         identifier = self.doc.newDocNode(self.ns['gmd'], 'identifier', None)
-        code = identifier.newChild(None, 'code', None)
+        RS_Identifier = identifier.newChild(None, 'RS_Identifier', None)
+        code = RS_Identifier.newChild(None, 'code', None)
         characterString = code.newChild(self.ns['gco'], 'CharacterString', escape(str(unique_id.id)))
         if unique_id.codespace:
-            codeSpace = identifier.newChild(None, 'codeSpace', None)
+            codeSpace = RS_Identifier.newChild(None, 'codeSpace', None)
             characterString = codeSpace.newChild(self.ns['gco'], 'CharacterString', escape(str(unique_id.codespace)))
             
         return identifier
@@ -674,9 +678,7 @@ class XMLBuilder(object):
             descriptiveKeywords = self.doc.newDocNode(self.ns['gmd'], 'descriptiveKeywords', None)
             MD_Keywords = descriptiveKeywords.newChild(None, 'MD_Keywords', None)
             keyword = MD_Keywords.newChild(None, 'keyword', None)
-            Anchor = keyword.newChild(self.ns['gmx'], 'Anchor', 'NDGO0001')
-            Anchor.setNsProp(self.ns['xlink'], 'href', 'http://vocab.ndg.nerc.ac.uk/term/N010/0')
-            Anchor.setNsProp(self.ns['xlink'], 'title', 'NERC OAI Harvesting')
+            CharacterString = keyword.newChild(self.ns['gco'], 'CharacterString', 'NDGO0001')
             nodes.append(descriptiveKeywords)
 
         keywords = self.m.mappedKeywords()
@@ -695,21 +697,13 @@ class XMLBuilder(object):
         for thesaurus, terms in thesauri.items():
             descriptiveKeywords = self.doc.newDocNode(self.ns['gmd'], 'descriptiveKeywords', None)
             MD_Keywords = descriptiveKeywords.newChild(None, 'MD_Keywords', None)
-
+            
             # add the thesaurus terms
             for term in terms:
                 keyword = MD_Keywords.newChild(None, 'keyword', None)
-                try:
-                    url = term.key
-                except AttributeError:
-                    CharacterString = keyword.newChild(self.ns['gco'], 'CharacterString', escape(term.term))
-                else:
-                    Anchor = keyword.newChild(self.ns['gmx'], 'Anchor', escape(term.term))
-                    Anchor.setNsProp(self.ns['xlink'], 'href', escape(str(url)))
-
-            # add the thesaurus itself
-            thesaurusName = descriptiveKeywords.newChild(None, 'thesaurusName', None)
-            thesaurusName.addChild(self.thesaurusToXML(thesaurus))
+                CharacterString = keyword.newChild(self.ns['gco'], 'CharacterString', escape(term.term))
+                thesaurusName = MD_Keywords.newChild(None, 'thesaurusName', None)
+                thesaurusName.addChild(self.thesaurusToXML(thesaurus))
                 
             nodes.append(descriptiveKeywords)
 
@@ -758,8 +752,8 @@ class XMLBuilder(object):
         CI_Date = date_node.newChild(None, 'CI_Date', None)
         date_node2 = CI_Date.newChild(None, 'date', None)
         date_node2.addChild(self.dateToXML(date))
-        dateType = date_node.newChild(None, 'dateType', None)
-        CI_DateTypeCode = date_node.newChild(None, 'CI_DateTypeCode', code)
+        dateType = CI_Date.newChild(None, 'dateType', None)
+        CI_DateTypeCode = dateType.newChild(None, 'CI_DateTypeCode', code)
         CI_DateTypeCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode')
         CI_DateTypeCode.setProp('codeListValue', code)
 
@@ -1002,15 +996,15 @@ class XMLBuilder(object):
 
         CI_ResponsibleParty = self.doc.newDocNode(self.ns['gmd'], 'CI_ResponsibleParty', None)
 
-        organisation = party.organisation
-        if organisation:
-            organisationName = CI_ResponsibleParty.newChild(None, 'organisationName', None)
-            organisationName.newChild(self.ns['gco'], 'CharacterString', escape(str(organisation)))
-
         individual = party.individual
         if individual:
             individualName = CI_ResponsibleParty.newChild(None, 'individualName', None)
             individualName.newChild(self.ns['gco'], 'CharacterString', escape(str(individual)))
+
+        organisation = party.organisation
+        if organisation:
+            organisationName = CI_ResponsibleParty.newChild(None, 'organisationName', None)
+            organisationName.newChild(self.ns['gco'], 'CharacterString', escape(str(organisation)))
 
         position = party.position
         if position:
@@ -1028,13 +1022,6 @@ class XMLBuilder(object):
                 voice = CI_Telephone.newChild(None, 'facsimile', None)
                 voice.newChild(self.ns['gco'], 'CharacterString', escape(str(party.fax)))
             details.append(phone)
-
-        if party.website:
-            onlineResource = self.doc.newDocNode(self.ns['gmd'], 'onlineResource', None)
-            CI_OnlineResource = onlineResource.newChild(None, 'CI_OnlineResource', None)
-            linkage = CI_OnlineResource.newChild(None, 'linkage', None)
-            linkage.newChild(None, 'URL', escape(str(party.website)))
-            details.append(onlineResource)
 
         address = self.doc.newDocNode(self.ns['gmd'], 'address', None)
         CI_Address = address.newChild(None, 'CI_Address', None)
@@ -1059,6 +1046,13 @@ class XMLBuilder(object):
             electronicMailAddress.newChild(self.ns['gco'], 'CharacterString', escape(str(party.email)))
         if CI_Address.children:
             details.append(address)
+
+        if party.website:
+            onlineResource = self.doc.newDocNode(self.ns['gmd'], 'onlineResource', None)
+            CI_OnlineResource = onlineResource.newChild(None, 'CI_OnlineResource', None)
+            linkage = CI_OnlineResource.newChild(None, 'linkage', None)
+            linkage.newChild(None, 'URL', escape(str(party.website)))
+            details.append(onlineResource)
 
         if details:
             contactInfo = CI_ResponsibleParty.newChild(None, 'contactInfo', None)
