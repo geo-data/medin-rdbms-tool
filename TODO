@@ -19,17 +19,3 @@ MEDIN METADATA TOOL: TODO
   TC 211 schema) is currently not working properly, meaning the
   validation routine isn't useful at the moment. This is a libxml
   specific issue that needs to be investigated.
-
-- Use the gmx:Anchor element within gmd:keyword elements where
-  appropriate. This element substitutes for gco:CharacterString and
-  works in the following way:
-
-  <gmd:keyword>
-    <gmx:Anchor xlink:href="http://vocab.ndg.nerc.ac.uk/term/P021/59/ZOOB">Zoobenthos taxonomy-related counts</gmx:Anchor>
-  </gmd:keyword>
-
-  instead of:
-
-  <gmd:keyword>
-    <gco:CharacterString>Zoobenthos taxonomy-related counts</gco:CharacterString>
-  </gmd:keyword>
