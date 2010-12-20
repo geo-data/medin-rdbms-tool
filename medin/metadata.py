@@ -416,6 +416,7 @@ class XMLBuilder(object):
         """
         identificationInfo = self.doc.newDocNode(self.ns['gmd'], 'identificationInfo', None)
         MD_DataIdentification = identificationInfo.newChild(None, 'MD_DataIdentification', None)
+
         citation = MD_DataIdentification.newChild(None, 'citation', None)
         CI_Citation = citation.newChild(None, 'CI_Citation', None)
         CI_Citation.addChild(self.title())
@@ -429,6 +430,9 @@ class XMLBuilder(object):
         for node in self.pointsOfContact():
             MD_DataIdentification.addChild(node)
 
+        node = self.frequencyOfUpdate()
+        if node: MD_DataIdentification.addChild(node)
+
         for node in self.dataFormats():
             MD_DataIdentification.addChild(node)
 
@@ -437,12 +441,8 @@ class XMLBuilder(object):
             for node in nodes:
                 MD_DataIdentification.addChild(node)
 
-        resourceConstraints = MD_DataIdentification.newChild(
-            None, 'resourceConstraints', None)
-        MD_LegalConstraints = resourceConstraints.newChild(
-            None, 'MD_LegalConstraints', None)
-        for node in self.limitationsOnPublicAccess():
-            MD_LegalConstraints.addChild(node)
+        node = self.resourceConstraints()
+        if node: MD_DataIdentification.addChild(node)
 
         node = self.spatialResolution()
         if node: MD_DataIdentification.addChild(node)
@@ -461,12 +461,6 @@ class XMLBuilder(object):
         node = self.additionalInfo()
         if node: MD_DataIdentification.addChild(node)
 
-        for node in self.conditionsForAccessAndUse():
-            MD_DataIdentification.addChild(node)
-
-        node = self.frequencyOfUpdate()
-        if node: MD_DataIdentification.addChild(node)
-            
         return identificationInfo
 
     def distributionInfo(self):
@@ -630,19 +624,18 @@ class XMLBuilder(object):
         """
         Element 8 to XML
         """
-        resource_languages = []
-        try:
-            it = iter(self.m.resource_languages)
-        except TypeError:
-            return []
+        nodes = []
 
-        for resource_language in self.m.resource_languages:
-            language = self.doc.newDocNode(self.ns['gmd'], 'language', None)
-            LanguageCode = language.newChild(None, 'LanguageCode', escape(str(resource_language.language)))
-            LanguageCode.setProp('codeList', 'http://www.loc.gov/standards/iso639-2/php/code_list.php')
-            LanguageCode.setProp('codeListValue', escape(str(resource_language.code)))
-            resource_languages.append(language)
-        return resource_languages
+        if not self.m.resource_languages:
+            # if no resource languages are present use the metadata
+            # language as a default
+            languages = [self.m.language]
+        else:
+            languages = self.m.resource_languages
+
+        for resource_language in languages:
+            nodes.append(self.languageToXML(resource_language))
+        return nodes
 
     def topicCategories(self):
         """
@@ -650,7 +643,7 @@ class XMLBuilder(object):
         """
         topic_categories = []
         for topic_category in self.m.mappedTopicCategories():
-            topicCategory = self.doc.newDocNode(self.ns['gmd'], 'topicCateogory', None)
+            topicCategory = self.doc.newDocNode(self.ns['gmd'], 'topicCategory', None)
             MD_TopicCategoryCode = topicCategory.newChild(None, 'MD_TopicCategoryCode', escape(topic_category.term))
             topic_categories.append(topicCategory)
         return topic_categories
@@ -702,9 +695,9 @@ class XMLBuilder(object):
             for term in terms:
                 keyword = MD_Keywords.newChild(None, 'keyword', None)
                 CharacterString = keyword.newChild(self.ns['gco'], 'CharacterString', escape(term.term))
-                thesaurusName = MD_Keywords.newChild(None, 'thesaurusName', None)
-                thesaurusName.addChild(self.thesaurusToXML(thesaurus))
                 
+            thesaurusName = MD_Keywords.newChild(None, 'thesaurusName', None)
+            thesaurusName.addChild(self.thesaurusToXML(thesaurus))
             nodes.append(descriptiveKeywords)
 
         return nodes
@@ -720,14 +713,14 @@ class XMLBuilder(object):
             None, 'westBoundLongitude', None)
         eastBoundLongitude = EX_GeographicBoundingBox.newChild(
             None, 'eastBoundLongitude', None)
-        southBoundLongitude = EX_GeographicBoundingBox.newChild(
-            None, 'southBoundLongitude', None)
-        northBoundLongitude = EX_GeographicBoundingBox.newChild(
-            None, 'northBoundLongitude', None)
+        southBoundLatitude = EX_GeographicBoundingBox.newChild(
+            None, 'southBoundLatitude', None)
+        northBoundLatitude = EX_GeographicBoundingBox.newChild(
+            None, 'northBoundLatitude', None)
         westBoundLongitude.newChild(self.ns['gco'], 'Decimal', escape(str(bbox.minx)))
         eastBoundLongitude.newChild(self.ns['gco'], 'Decimal', escape(str(bbox.maxx)))
-        southBoundLongitude.newChild(self.ns['gco'], 'Decimal', escape(str(bbox.miny)))
-        northBoundLongitude.newChild(self.ns['gco'], 'Decimal', escape(str(bbox.maxy)))
+        southBoundLatitude.newChild(self.ns['gco'], 'Decimal', escape(str(bbox.miny)))
+        northBoundLatitude.newChild(self.ns['gco'], 'Decimal', escape(str(bbox.maxy)))
         return geographicElement
 
     def dateToXML(self, date):
@@ -862,10 +855,14 @@ class XMLBuilder(object):
         EX_TemporalExtent = temporalElement.newChild(None, 'EX_TemporalExtent', None)
         extent = EX_TemporalExtent.newChild(None, 'extent', None)
         TimePeriod = extent.newChild(self.ns['gml'], 'TimePeriod', None)
-        TimePeriod.setProp('id', 'medinMEDIN01')
+        TimePeriod.setNsProp(self.ns['gml'], 'id', 'medinMEDIN01')
         TimePeriod.newChild(None, 'beginPosition', escape(str(ref.begin)))
         if ref.end:
             TimePeriod.newChild(None, 'endPosition', escape(str(ref.end)))
+        else:
+            # default to now
+            endPosition = TimePeriod.newChild(None, 'endPosition', None)
+            endPosition.setProp('indeterminatePosition', 'now')
 
         return temporalElement
         
@@ -944,6 +941,24 @@ class XMLBuilder(object):
         supplementalInformation.newChild(self.ns['gco'], 'CharacterString', escape(str(info)))
         return supplementalInformation
 
+    def resourceConstraints(self):
+        access_constraints = self.conditionsForAccessAndUse() # element 21
+        legal_constraints = self.limitationsOnPublicAccess() # element 20
+
+        if legal_constraints:
+            element_name = 'MD_LegalConstraints'
+        elif access_constraints:
+            element_name = 'MD_Constraints'
+        else:
+            return None
+
+        resourceConstraints = self.doc.newDocNode(self.ns['gmd'], 'resourceConstraints', None)
+        MD_Constraints = resourceConstraints.newChild(None, element_name, None)
+        for node in access_constraints + legal_constraints:
+            MD_Constraints.addChild(node)
+
+        return resourceConstraints
+    
     def limitationsOnPublicAccess(self):
         """
         Element 20 to XML
@@ -979,13 +994,11 @@ class XMLBuilder(object):
         limitations = list(self.m.use_limitations)
         if not limitations:
             limitations.append('no conditions apply')
-        
+
         for limitation in limitations:
-            resourceConstraints = self.doc.newDocNode(self.ns['gmd'], 'resourceConstraints', None)
-            MD_Constraints = resourceConstraints.newChild(None, 'MD_Constraints', None)
-            useLimitation = MD_Constraints.newChild(None, 'useLimitation', None)
+            useLimitation = self.doc.newDocNode(self.ns['gmd'], 'useLimitation', None)
             useLimitation.newChild(self.ns['gco'], 'CharacterString', escape(str(limitation)))
-            nodes.append(resourceConstraints)
+            nodes.append(useLimitation)
 
         return nodes
 
@@ -1177,16 +1190,20 @@ class XMLBuilder(object):
         characterString = metadataStandardVersion.newChild(self.ns['gco'], 'CharacterString', escape(str(self.m.version)))
         return metadataStandardVersion
 
+    def languageToXML(self, language):
+        node = self.doc.newDocNode(self.ns['gmd'], 'language', None)
+        languageCode = node.newChild(None, 'LanguageCode', escape(str(language.name)))
+        languageCode.setProp("codeList", "http://www.loc.gov/standards/iso639-2/php/code_list.php")
+        languageCode.setProp("codeListValue", escape(str(language.code)))
+
+        return node
+        
+    
     def language(self):
         """
         Element 29 to XML
         """
-        language = self.doc.newDocNode(self.ns['gmd'], 'language', None)
-        languageCode = language.newChild(None, 'LanguageCode', escape(str(self.m.language.name)))
-        languageCode.setProp("codeList", "http://www.loc.gov/standards/iso639-2/php/code_list.php")
-        languageCode.setProp("codeListValue", escape(str(self.m.language.code)))
-
-        return language
+        return self.languageToXML(self.m.language)
 
     def parentIdentifier(self):
         """
