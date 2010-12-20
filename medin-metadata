@@ -39,9 +39,12 @@ class Output(object):
     """
     Abstract base class for outputting metadata as XML
     """
+    validator = None
 
     def __init__(self, validate=False):
-        self.validate = validate
+        if validate:
+            from medin.validate import Validator
+            self.validator = Validator()
 
     def processMetadata(self, metadata):
         """
@@ -51,17 +54,17 @@ class Output(object):
         import libxml2
         from medin import log
         from medin.metadata import XMLBuilder
-        from medin.validate import validate, ValidationError
+        from medin.validate import ValidationError
 
         # transform the metadata to XML
         builder = XMLBuilder(metadata)
         doc = builder.build()
 
         # try and validate the xml
-        if self.validate:
+        if self.validator:
             log('Performing validation')
             try:
-                validate(doc)
+                self.validator(doc)
             except ValidationError, e:
                 warn('The document is not valid: %s' % e.args[0])
                 return None
@@ -222,8 +225,8 @@ def main():
     parser.add_option("-v", '--validate', action="store_true",
                       help="""Enable validation of output XML. A three step validation is performed:
 1. Validate against the ISO TC 211 schema.
-2. Validate against the ISO TS 19139 A1 Constraints.
-3. Validate against the Medin Metadata Profile.
+2. Validate against the ISO TS 19139 A1 Constraints (version 1.3).
+3. Validate against the Medin Metadata Profile (version 1.7).
 Any XML document passing these tests complies with the Medin Metadata
 requirements.""")
 
