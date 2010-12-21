@@ -34,19 +34,25 @@ class Session(object):
         db_schema = MetaData(self.sess.bind)
         db_schema.reflect()
 
+        # create a case insensitive map between table names
+        table_map = dict([(name.lower(), name) for name in db_schema.tables.keys()])
+        
         # iterate over each schema table
         for my_table in my_schema.tables.values():
             # ensure the table exists in the database
             try:
-                db_table = db_schema.tables[my_table.name]
+                db_table = db_schema.tables[table_map[my_table.name.lower()]]
             except KeyError:
                 errors.append('The table does not exist in the database: '+my_table.name)
                 continue
 
+            # create a case insensitive map between column names
+            column_map = dict([(name.lower(), name) for name in db_table.columns.keys()])
+            
             # ensure each column exists
             for my_column in my_table.columns:
                 try:
-                    db_column = db_table.columns[my_column.name]
+                    db_column = db_table.columns[column_map[my_column.name.lower()]]
                 except KeyError:
                     errors.append('The column does not exist in the table "%s": %s' % (db_table.name, my_column.name))
                     continue
