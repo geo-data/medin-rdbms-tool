@@ -470,15 +470,15 @@ class XMLBuilder(object):
         distributionFormat = MD_Distribution.newChild(None, 'distributionFormat', None)
         distributionFormat.setNsProp(self.ns['gco'], 'nilReason', 'inapplicable')
 
+        for node in self.distributors():
+            MD_Distribution.addChild(node)
+
         if self.m.resource_locators:
             transferOptions = MD_Distribution.newChild(None, 'transferOptions', None)
             MD_DigitalTransferOptions = transferOptions.newChild(None, 'MD_DigitalTransferOptions', None)
             onLine = MD_DigitalTransferOptions.newChild(None, 'onLine', None)
             for node in self.resourceLocators():
                 onLine.addChild(node)
-
-        for node in self.distributors():
-            MD_Distribution.addChild(node)
 
         return distributionInfo
 
