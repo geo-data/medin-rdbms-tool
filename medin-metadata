@@ -10,157 +10,31 @@ DEBUG = False                           # controls debugging output
 # replace the default warning display function with our own
 import warnings
 from warnings import showwarning as defaultwarning
-def showwarning(*args, **kwargs):
+def showwarning(message, category, *args, **kwargs):
     """
     Replacement for default warnings.showwarning
 
-    This function only shows warnings when in debugging mode
+    This function only shows warnings when in debugging mode unless
+    they are medin warnings in which case they are always output.
     """
+    from medin import MedinWarning
     global DEBUG
-    if DEBUG: defaultwarning(*args, **kwargs)
+    if DEBUG:
+        defaultwarning(message, category, *args, **kwargs)
+    elif issubclass(category, MedinWarning):
+        sys.stderr.write("WARNING: %s\n" % message)
 warnings.showwarning = showwarning
 
-def warn(msg):
-    """Output a message to standard error"""
+def die(msg):
+    """End the program with a message to standard error"""
 
     sys.stderr.write("%s\n" % msg)
     try:
         log(msg)
     except NameError:
         pass                    # for when the medin module can't be imported
-    
-def die(msg):
-    """End the program with a message"""
 
-    warn(msg)
     sys.exit(1)
-    
-class Output(object):
-    """
-    Abstract base class for outputting metadata as XML
-    """
-    validator = None
-
-    def __init__(self, validate=False):
-        if validate:
-            from medin.validate import Validator
-            self.validator = Validator()
-
-    def processMetadata(self, metadata):
-        """
-        Process an individual metadata instance
-        """
-        from cStringIO import StringIO
-        import libxml2
-        from medin import log
-        from medin.metadata import XMLBuilder
-        from medin.validate import ValidationError
-
-        # transform the metadata to XML
-        builder = XMLBuilder(metadata)
-        doc = builder.build()
-
-        # try and validate the xml
-        if self.validator:
-            log('Performing validation')
-            try:
-                self.validator(doc)
-            except ValidationError, e:
-                warn('The document is not valid: %s' % e.args[0])
-                return None
-            else:
-                log("The document is valid")
-
-        # output the document
-        f = StringIO()
-        buf = libxml2.createOutputBuffer(f, 'utf-8')
-        doc.saveFormatFileTo(buf, 'utf-8', True)
-        doc.freeDoc()                       # clean up
-
-        return f.getvalue().strip()
-
-    def write(self, iter_metadata):
-        raise NotImplementedError('This method must be overridden')
-
-class FileOutput(Output):
-    """
-    Output metadata as XML to a file handle
-    """
-
-    def __init__(self, file, *args, **kwargs):
-        self.fh = file
-
-        super(FileOutput, self).__init__(*args, **kwargs)
-
-    def write(self, iter_metadata):
-        for metadata in iter_metadata:
-            xml = self.processMetadata(metadata)
-            if not xml:
-                continue
-            self.fh.write(xml)
-            self.fh.write("\n")
-
-class MIMEOutput(FileOutput):
-    """
-    Output metadata as XML wrapped in MIME format
-    """
-
-    def __init__(self, *args, **kwargs):
-        from uuid import uuid4
-        self.uid = uuid4().hex  # get an unique identifer
-
-        super(MIMEOutput, self).__init__(*args, **kwargs)
-
-    def write(self, iter_metadata):
-        from medin import __version__
-        self.fh.write("""MIME-Version: 1.0
-Content-Type: multipart/mixed; charset=UTF-8; boundary="%s"
-
-MEDIN XML Metadata created by MEDIN Metadata Generator version %s\n""" % (self.uid, str(__version__)))
-
-        for metadata in iter_metadata:
-            xml = self.processMetadata(metadata)
-            if not xml:
-                continue
-            filename = metadata.unique_id.id + '.xml'
-            self.fh.write("""--%s
-Content-Type: text/xml; charset=UTF-8;
-Content-Disposition: inline; filename="%s";
-
-""" % (self.uid, filename))
-            self.fh.write(xml)
-            self.fh.write("\n")
-
-        self.fh.write("--%s--\n" % self.uid)  # the final boundary
-
-class DirOutput(Output):
-    """
-    Output metadata as XML to a directory
-    """
-
-    def __init__(self, directory=None, *args, **kwargs):
-        super(DirOutput, self).__init__(*args, **kwargs)
-
-        from os.path import curdir, abspath
-        if not directory:
-            directory = curdir
-        self.directory = abspath(directory)
-
-    def write(self, iter_metadata):
-        from os.path import join
-        for metadata in iter_metadata:
-            xml = self.processMetadata(metadata)
-            if not xml:
-                continue
-            filename = metadata.unique_id.id + '.xml'
-            path = join(self.directory, filename)
-            try:
-                fh = open(path, 'w')
-                fh.write(xml)
-            except IOError, e:
-                die('Could not write metadata to file: %s: %s' % (e.strerror, e.filename))
-            else:
-                fh.close()
 
 def main():
     """
@@ -174,6 +48,7 @@ def main():
         import medin
         from medin import log, __version__
         from medin.util import check_environment
+        from medin.output import MIMEOutput, FileOutput, DirOutput, ValidationWarning
         import medin.schema
     except ImportError:
         die('The medin module could not be found. Please ensure it is in your python module search path.')
@@ -183,6 +58,7 @@ def main():
 
   Extract metadata from a data provider database as MEDIN XML.
 
+Basic Usage:
   SCHEMA is the name of the database schema in use by the provider
   database e.g. 'medin'.
 
@@ -203,7 +79,19 @@ def main():
   medin schema based on the BODC EDMED oracle database. It can be
   called as follows:
 
-  %prog medin example"""
+  %prog medin example
+
+Validation:
+  Passing 'warn' or 'strict' to the program using the --validation
+  option will validate the XML before it is output. A three step
+  validation is performed:
+
+  1. Validate against the ISO TC 211 W3C schema.
+  2. Validate against the ISO TS 19139 A1 Constraints (version 1.3)
+  3. Validate against the Medin Metadata Profile (version 1.7)
+
+  Any XML document passing these tests complies with the Medin
+  Metadata requirements."""
 
     parser = OptionParser(usage=usage, version="%%prog %s" % str(__version__))
 
@@ -220,15 +108,11 @@ def main():
                       help="Output a specific resource ID. The ID must be the fully qualified unique resource identifier (Element 6 e.g. http://www.bodc.ac.uk/EDMED587). This option can be specified multiple times.")
     parser.add_option("-n", '--no-mime', action="store_true",
                       help="Do not encapsulate the XML output in MIME format. This is only useful when --destination is not specified.")
-    parser.add_option("-o", '--destination',
+    parser.add_option("-o", '--destination', metavar='DIRECTORY',
                       help="Output the XML to the specified DIRECTORY. Existing files are over-written.")
-    parser.add_option("-v", '--validate', action="store_true",
-                      help="""Enable validation of output XML. A three step validation is performed:
-1. Validate against the ISO TC 211 schema.
-2. Validate against the ISO TS 19139 A1 Constraints (version 1.3).
-3. Validate against the Medin Metadata Profile (version 1.7).
-Any XML document passing these tests complies with the Medin Metadata
-requirements.""")
+    parser.add_option("-v", '--validation', default='strict', metavar='LEVEL',
+                      choices=['none', 'warn', 'strict'],
+                      help="""Control validation of output XML. LEVEL can be one of: 'none' - disable validation; 'warn' - output warning messages for failed validations; 'strict' (default) - output a warning message for a failed validation and exit the program""")
 
     (options, args) = parser.parse_args()
     try:
@@ -287,7 +171,7 @@ requirements.""")
 
     # create the database engine
     from sqlalchemy import create_engine
-    from sqlalchemy.exc import ArgumentError
+    from sqlalchemy.exc import ArgumentError, OperationalError, DatabaseError
     engine = None
     if connstr == 'example':
         from os.path import join, dirname, abspath
@@ -312,7 +196,12 @@ requirements.""")
 
     # verify the schema plugin against the database schema
     provider = schema_module.Session(engine, vocabs, contacts)
-    errors = provider.verifySchema()
+
+    try:
+        errors = provider.verifySchema()
+    except (OperationalError, DatabaseError), e:
+        die('Database error: %s' % e.args[0])
+    
     if errors:
         msg = """The database schema does not match the %s schema:
 %s""" % (schema_name, "\n".join(errors))
@@ -337,19 +226,32 @@ requirements.""")
             for metadata in provider:
                 yield metadata
 
-    # output the metadata entries
+    # determine the output format
+    validate = options.validation != 'none'
     if options.destination:
-        output = DirOutput(options.destination, options.validate)
+        output = DirOutput(options.destination, validate)
     elif options.no_mime:
-        output = FileOutput(sys.stdout, options.validate)
+        output = FileOutput(sys.stdout, validate)
     else:
-        output = MIMEOutput(sys.stdout, options.validate)
+        output = MIMEOutput(sys.stdout, validate)
 
-    from sqlalchemy.exc import DatabaseError
-    try:
-        output.write(metadata_generator())
-    except DatabaseError, e:
-        die('Database error: %s' % e.message)
+    # output the metadata entries with appropriate validation messages
+    with output:
+        for flush, warning in output(metadata_generator()):
+            try:
+                flush()              # output this metadata record
+            except IOError, e:
+                if e.filename:
+                    msg = '%s: %s' % (e.strerror, e.filename)
+                else:
+                    msg = e.strerror
+                die(msg)
+
+            # deal with validation warnings
+            if warning and validate:
+                if options.validation == 'strict':
+                    die('Validation Error: %s' % str(warning))
+                warnings.warn(str(warning), warning.__class__)
 
 if __name__ == '__main__':
     try:
@@ -361,7 +263,7 @@ if __name__ == '__main__':
             raise
     except KeyboardInterrupt:
         die("\nProgram interrupted! Exiting...")
-    except Exception, e: 
+    except Exception, e:
         if DEBUG:
             raise
         else:

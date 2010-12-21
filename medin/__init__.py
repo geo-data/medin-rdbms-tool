@@ -1,4 +1,4 @@
-__version__ = '0.6'
+__version__ = '0.7'
 
 # ensure we are using UTF-8. Catching this here will save headaches
 # later!
@@ -15,3 +15,9 @@ def log(msg):
     """
     from medin import DEBUG
     if DEBUG: print msg
+
+class MedinWarning(Warning):
+    """
+    Base class for Medin related warnings
+    """
+    pass
