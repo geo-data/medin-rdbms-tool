@@ -70,6 +70,9 @@ package_args = dict(
                             'data/terms.json',
                             'data/thesauri.json',
                             'data/VocabServerAPI_dl.wsdl',
+                            'data/MedinMetadataProfile_v1.7.xsl',
+                            'data/ISOTS19139A1Constraints_v1.3.xsl',
+                            'data/contacts.sqlite',
                             'data/vocabularies.sqlite']})
 
 # decide whether to build an exe or install
