@@ -32,6 +32,7 @@ class Metadata(metadata.Metadata):
     in the MEDIN schema behind the interface defined by the base
     class.
     """
+    METADATAID = None
     RESTYP_ID = _RESTYP_ID = _resource_type = None
     SDSTYP_ID = _SDSTYP_ID = _service_type = None
     ACCESS_CONSTRAINTS = _ACCESS_CONSTRAINTS = _access_constraint_terms = None
@@ -774,6 +775,7 @@ Format) translated from codes to text using the thesaurus."""))
         
         metadata_table = schema.tables['METADATA']
         mapper(Metadata, metadata_table, properties={
+            'METADATAID': metadata_table.c.METADATAID,
             'title': metadata_table.c.TITLE,
             'alt_titles': relationship(AlternativeTitle, order_by=AlternativeTitle.ALTTITLE),
             'abstract': metadata_table.c.ABSTRACT,
@@ -832,6 +834,6 @@ Format) translated from codes to text using the thesaurus."""))
 
     def __iter__(self):
         # iterate over all metadata instances
-        for metadata in self.sess.query(Metadata):
+        for metadata in self.sess.query(Metadata).order_by(Metadata.METADATAID):
             metadata.vocabs = self.vocabs
             yield metadata
