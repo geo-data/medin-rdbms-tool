@@ -27,36 +27,37 @@ class Session(object):
         Reflect the database schema and check it against the plugin
         schema.
         """
-        from sqlalchemy import MetaData
+        from sqlalchemy import MetaData, Table
+        from sqlalchemy.engine.reflection import Inspector
         
         errors = []
         my_schema = self.getSchema()
-        db_schema = MetaData(self.sess.bind)
-        db_schema.reflect()
+        db_schema = MetaData()
+        insp = Inspector.from_engine(self.sess.bind)
 
-        # create a case insensitive map between table names
-        table_map = dict([(name.lower(), name) for name in db_schema.tables.keys()])
+        # create a case insensitive map between table names in the user database
+        table_map = dict([(name.lower(), name) for name in insp.get_table_names()])
         
         # iterate over each schema table
         for my_table in my_schema.tables.values():
             # ensure the table exists in the database
             try:
-                db_table = db_schema.tables[table_map[my_table.name.lower()]]
+                table_name = table_map[my_table.name.lower()]
             except KeyError:
                 errors.append('The table does not exist in the database: '+my_table.name)
                 continue
 
-            # create a case insensitive map between column names
-            column_map = dict([(name.lower(), name) for name in db_table.columns.keys()])
-            
-            # ensure each column exists
+            # create a case insensitive map between column names for the user table
+            column_map = dict([(column['name'].lower(), column) for column in insp.get_columns(table_name)])
+
+            # ensure each required column exists in the user table
             for my_column in my_table.columns:
                 try:
-                    db_column = db_table.columns[column_map[my_column.name.lower()]]
+                    db_column = column_map[my_column.name.lower()]
                 except KeyError:
-                    errors.append('The column does not exist in the table "%s": %s' % (db_table.name, my_column.name))
+                    errors.append('The column does not exist in the table "%s": %s' % (table_name, my_column.name))
                     continue
-            
+
         return errors
 
     def getSchema(self):
