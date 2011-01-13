@@ -1,5 +1,5 @@
 # sybase/base.py
-# Copyright (C) 2010 Michael Bayer mike_mp@zzzcomputing.com
+# Copyright (C) 2010-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
 # get_select_precolumns(), limit_clause() implementation
 # copyright (C) 2007 Fisch Asset Management 
 # AG http://www.fam.ch, with coding by Alexander Houben 
@@ -88,10 +88,10 @@ RESERVED_WORDS = set([
     "within", "work", "writetext",
     ])
 
-        
+
 class _SybaseUnitypeMixin(object):
     """these types appear to return a buffer object."""
-    
+
     def result_processor(self, dialect, coltype):
         def process(value):
             if value is not None:
@@ -99,7 +99,7 @@ class _SybaseUnitypeMixin(object):
             else:
                 return None
         return process
-    
+
 class UNICHAR(_SybaseUnitypeMixin, sqltypes.Unicode):
     __visit_name__ = 'UNICHAR'
 
@@ -114,7 +114,7 @@ class TINYINT(sqltypes.Integer):
 
 class BIT(sqltypes.TypeEngine):
     __visit_name__ = 'BIT'
-    
+
 class MONEY(sqltypes.TypeEngine):
     __visit_name__ = "MONEY"
 
@@ -123,7 +123,7 @@ class SMALLMONEY(sqltypes.TypeEngine):
 
 class UNIQUEIDENTIFIER(sqltypes.TypeEngine):
     __visit_name__ = "UNIQUEIDENTIFIER"
-  
+
 class IMAGE(sqltypes.LargeBinary):
     __visit_name__ = 'IMAGE'
  
@@ -131,7 +131,7 @@ class IMAGE(sqltypes.LargeBinary):
 class SybaseTypeCompiler(compiler.GenericTypeCompiler):
     def visit_large_binary(self, type_):
         return self.visit_IMAGE(type_)
-    
+
     def visit_boolean(self, type_):
         return self.visit_BIT(type_)
 
@@ -149,7 +149,7 @@ class SybaseTypeCompiler(compiler.GenericTypeCompiler):
 
     def visit_TINYINT(self, type_):
         return "TINYINT"
-        
+
     def visit_IMAGE(self, type_):
         return "IMAGE"
 
@@ -158,13 +158,13 @@ class SybaseTypeCompiler(compiler.GenericTypeCompiler):
 
     def visit_MONEY(self, type_):
         return "MONEY"
-    
+
     def visit_SMALLMONEY(self, type_):
         return "SMALLMONEY"
-        
+
     def visit_UNIQUEIDENTIFIER(self, type_):
         return "UNIQUEIDENTIFIER"
-        
+
 ischema_names = {
     'integer' : INTEGER,
     'unsigned int' : INTEGER, # TODO: unsigned flags
@@ -194,30 +194,31 @@ ischema_names = {
 
 class SybaseExecutionContext(default.DefaultExecutionContext):
     _enable_identity_insert = False
-    
+
     def set_ddl_autocommit(self, connection, value):
         """Must be implemented by subclasses to accommodate DDL executions.
-        
+
         "connection" is the raw unwrapped DBAPI connection.   "value"
         is True or False.  when True, the connection should be configured
         such that a DDL can take place subsequently.  when False,
         a DDL has taken place and the connection should be resumed
         into non-autocommit mode.
-        
+
         """
         raise NotImplementedError()
-        
+
     def pre_exec(self):
         if self.isinsert:
             tbl = self.compiled.statement.table
             seq_column = tbl._autoincrement_column
             insert_has_sequence = seq_column is not None
-            
+
             if insert_has_sequence:
-                self._enable_identity_insert = seq_column.key in self.compiled_parameters[0]
+                self._enable_identity_insert = \
+                                seq_column.key in self.compiled_parameters[0]
             else:
                 self._enable_identity_insert = False
-            
+
             if self._enable_identity_insert:
                 self.cursor.execute("SET IDENTITY_INSERT %s ON" % 
                     self.dialect.identifier_preparer.format_table(tbl))
@@ -227,23 +228,27 @@ class SybaseExecutionContext(default.DefaultExecutionContext):
             # database settings.  this error message should be improved to 
             # include a note about that.
             if not self.should_autocommit:
-                raise exc.InvalidRequestError("The Sybase dialect only supports "
-                                            "DDL in 'autocommit' mode at this time.")
+                raise exc.InvalidRequestError(
+                        "The Sybase dialect only supports "
+                        "DDL in 'autocommit' mode at this time.")
 
-            self.root_connection.engine.logger.info("AUTOCOMMIT (Assuming no Sybase 'ddl in tran')")
+            self.root_connection.engine.logger.info(
+                        "AUTOCOMMIT (Assuming no Sybase 'ddl in tran')")
 
-            self.set_ddl_autocommit(self.root_connection.connection.connection, True)
-            
+            self.set_ddl_autocommit(
+                        self.root_connection.connection.connection, 
+                        True)
+
 
     def post_exec(self):
        if self.isddl:
             self.set_ddl_autocommit(self.root_connection, False)
-        
+
        if self._enable_identity_insert:
             self.cursor.execute(
-                        "SET IDENTITY_INSERT %s OFF" %  
-                                self.dialect.identifier_preparer.
-                                    format_table(self.compiled.statement.table)
+                        "SET IDENTITY_INSERT %s OFF" %
+                            self.dialect.identifier_preparer.
+                            format_table(self.compiled.statement.table)
                         )
 
     def get_lastrowid(self):
@@ -289,10 +294,12 @@ class SybaseSQLCompiler(compiler.SQLCompiler):
 
     def visit_extract(self, extract, **kw):
         field = self.extract_map.get(extract.field, extract.field)
-        return 'DATEPART("%s", %s)' % (field, self.process(extract.expr, **kw))
+        return 'DATEPART("%s", %s)' % (
+                            field, self.process(extract.expr, **kw))
 
     def for_update_clause(self, select):
-        # "FOR UPDATE" is only allowed on "DECLARE CURSOR" which SQLAlchemy doesn't use
+        # "FOR UPDATE" is only allowed on "DECLARE CURSOR" 
+        # which SQLAlchemy doesn't use
         return ''
 
     def order_by_clause(self, select, **kw):
@@ -309,18 +316,21 @@ class SybaseSQLCompiler(compiler.SQLCompiler):
 class SybaseDDLCompiler(compiler.DDLCompiler):
     def get_column_specification(self, column, **kwargs):
         colspec = self.preparer.format_column(column) + " " + \
-                                   self.dialect.type_compiler.process(column.type)
+                        self.dialect.type_compiler.process(column.type)
 
         if column.table is None:
-            raise exc.InvalidRequestError("The Sybase dialect requires Table-bound "\
-                                                   "columns in order to generate DDL")
+            raise exc.InvalidRequestError(
+                        "The Sybase dialect requires Table-bound "
+                       "columns in order to generate DDL")
         seq_col = column.table._autoincrement_column
 
         # install a IDENTITY Sequence if we have an implicit IDENTITY column
         if seq_col is column:
-            sequence = isinstance(column.default, sa_schema.Sequence) and column.default
+            sequence = isinstance(column.default, sa_schema.Sequence) \
+                                    and column.default
             if sequence:
-                start, increment = sequence.start or 1, sequence.increment or 1
+                start, increment = sequence.start or 1, \
+                                    sequence.increment or 1
             else:
                 start, increment = 1, 1
             if (start, increment) == (1, 1):
@@ -345,7 +355,8 @@ class SybaseDDLCompiler(compiler.DDLCompiler):
         index = drop.element
         return "\nDROP INDEX %s.%s" % (
             self.preparer.quote_identifier(index.table.name),
-            self.preparer.quote(self._validate_identifier(index.name, False), index.quote)
+            self.preparer.quote(
+                    self._index_identifier(index.name), index.quote)
             )
 
 class SybaseIdentifierPreparer(compiler.IdentifierPreparer):
@@ -371,7 +382,8 @@ class SybaseDialect(default.DefaultDialect):
 
     def _get_default_schema_name(self, connection):
         return connection.scalar(
-                     text("SELECT user_name() as user_name", typemap={'user_name':Unicode})
+                     text("SELECT user_name() as user_name",
+                     typemap={'user_name':Unicode})
              )
 
     def initialize(self, connection):
@@ -381,7 +393,7 @@ class SybaseDialect(default.DefaultDialect):
             self.max_identifier_length = 30
         else:
             self.max_identifier_length = 255
-        
+
     @reflection.cache
     def get_table_names(self, connection, schema=None, **kw):
         if schema is None:

@@ -1,5 +1,5 @@
-# mapper/sync.py
-# Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010 Michael Bayer mike_mp@zzzcomputing.com
+# orm/sync.py
+# Copyright (C) 2005-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
 #
 # This module is part of SQLAlchemy and is released under
 # the MIT License: http://www.opensource.org/licenses/mit-license.php
@@ -11,7 +11,7 @@ between instances based on join conditions.
 from sqlalchemy.orm import exc, util as mapperutil
 
 def populate(source, source_mapper, dest, dest_mapper, 
-                        synchronize_pairs, uowcommit, passive_updates):
+                        synchronize_pairs, uowcommit, flag_cascaded_pks):
     for l, r in synchronize_pairs:
         try:
             value = source_mapper._get_state_attr_by_column(source, source.dict, l)
@@ -22,14 +22,14 @@ def populate(source, source_mapper, dest, dest_mapper,
             dest_mapper._set_state_attr_by_column(dest, dest.dict, r, value)
         except exc.UnmappedColumnError:
             _raise_col_to_prop(True, source_mapper, l, dest_mapper, r)
-        
+
         # techically the "r.primary_key" check isn't
         # needed here, but we check for this condition to limit
         # how often this logic is invoked for memory/performance
         # reasons, since we only need this info for a primary key
         # destination.
         if l.primary_key and r.primary_key and \
-                    r.references(l) and passive_updates:
+                    r.references(l) and flag_cascaded_pks:
             uowcommit.attributes[("pk_cascaded", dest, r)] = True
 
 def clear(dest, dest_mapper, synchronize_pairs):
@@ -67,11 +67,11 @@ def populate_dict(source, source_mapper, dict_, synchronize_pairs):
 def source_modified(uowcommit, source, source_mapper, synchronize_pairs):
     """return true if the source object has changes from an old to a 
     new value on the given synchronize pairs
-    
+
     """
     for l, r in synchronize_pairs:
         try:
-            prop = source_mapper._get_col_to_prop(l)
+            prop = source_mapper._columntoproperty[l]
         except exc.UnmappedColumnError:
             _raise_col_to_prop(False, source_mapper, l, None, r)
         history = uowcommit.get_attribute_history(source, prop.key, passive=True)

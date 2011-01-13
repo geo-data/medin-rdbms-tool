@@ -1,4 +1,11 @@
-from sqlalchemy.dialects.mssql import base, pyodbc, adodbapi, pymssql, zxjdbc, mxodbc
+# mssql/__init__.py
+# Copyright (C) 2005-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
+#
+# This module is part of SQLAlchemy and is released under
+# the MIT License: http://www.opensource.org/licenses/mit-license.php
+
+from sqlalchemy.dialects.mssql import base, pyodbc, adodbapi, \
+                                    pymssql, zxjdbc, mxodbc
 
 base.dialect = pyodbc.dialect
 

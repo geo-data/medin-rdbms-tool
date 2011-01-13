@@ -1,3 +1,9 @@
+# test/schema.py
+# Copyright (C) 2005-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
+#
+# This module is part of SQLAlchemy and is released under
+# the MIT License: http://www.opensource.org/licenses/mit-license.php
+
 """Enhanced versions of schema.Table and schema.Column which establish
 desired state for different backends.
 """
@@ -76,4 +82,4 @@ def _truncate_name(dialect, name):
         return name[0:max(dialect.max_identifier_length - 6, 0)] + "_" + hex(hash(name) % 64)[2:]
     else:
         return name
-    
+

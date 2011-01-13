@@ -1,8 +1,9 @@
-# sqlite.py
-# Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010 Michael Bayer mike_mp@zzzcomputing.com
+# sqlite/base.py
+# Copyright (C) 2005-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
 #
 # This module is part of SQLAlchemy and is released under
 # the MIT License: http://www.opensource.org/licenses/mit-license.php
+
 """Support for the SQLite database.
 
 For information on connecting using a specific driver, see the documentation
@@ -67,21 +68,21 @@ from sqlalchemy import processors
 from sqlalchemy.types import BLOB, BOOLEAN, CHAR, DATE, DATETIME, DECIMAL,\
                             FLOAT, INTEGER, NUMERIC, SMALLINT, TEXT, TIME,\
                             TIMESTAMP, VARCHAR
-                            
+
 
 class _DateTimeMixin(object):
     _reg = None
     _storage_format = None
-    
+
     def __init__(self, storage_format=None, regexp=None, **kwargs):
         if regexp is not None:
             self._reg = re.compile(regexp)
         if storage_format is not None:
             self._storage_format = storage_format
-            
+
 class DATETIME(_DateTimeMixin, sqltypes.DateTime):
     _storage_format = "%04d-%02d-%02d %02d:%02d:%02d.%06d"
-  
+
     def bind_processor(self, dialect):
         datetime_datetime = datetime.datetime
         datetime_date = datetime.date
@@ -123,7 +124,7 @@ class DATE(_DateTimeMixin, sqltypes.Date):
                 raise TypeError("SQLite Date type only accepts Python "
                                 "date objects as input.")
         return process
-  
+
     def result_processor(self, dialect, coltype):
         if self._reg:
             return processors.str_to_datetime_processor_factory(
@@ -147,7 +148,7 @@ class TIME(_DateTimeMixin, sqltypes.Time):
                 raise TypeError("SQLite Time type only accepts Python "
                                 "time objects as input.")
         return process
-  
+
     def result_processor(self, dialect, coltype):
         if self._reg:
             return processors.str_to_datetime_processor_factory(
@@ -201,10 +202,10 @@ class SQLiteCompiler(compiler.SQLCompiler):
 
     def visit_now_func(self, fn, **kw):
         return "CURRENT_TIMESTAMP"
-    
+
     def visit_char_length_func(self, fn, **kw):
         return "length%s" % self.function_argspec(fn)
-        
+
     def visit_cast(self, cast, **kwargs):
         if self.dialect.supports_cast:
             return super(SQLiteCompiler, self).visit_cast(cast)
@@ -253,7 +254,7 @@ class SQLiteDDLCompiler(compiler.DDLCompiler):
              isinstance(column.type, sqltypes.Integer) and \
              not column.foreign_keys:
              colspec += " PRIMARY KEY AUTOINCREMENT"
-            
+
         return colspec
 
     def visit_primary_key_constraint(self, constraint):
@@ -270,7 +271,21 @@ class SQLiteDDLCompiler(compiler.DDLCompiler):
  
         return super(SQLiteDDLCompiler, self).\
                     visit_primary_key_constraint(constraint)
- 
+
+    def visit_foreign_key_constraint(self, constraint):
+
+        local_table = constraint._elements.values()[0].parent.table
+        remote_table = list(constraint._elements.values())[0].column.table
+
+        if local_table.schema != remote_table.schema:
+            return None
+        else:
+            return super(SQLiteDDLCompiler, self).visit_foreign_key_constraint(constraint)
+
+    def define_constraint_remote_table(self, constraint, table, preparer):
+        """Format the remote table clause of a CREATE CONSTRAINT clause."""
+
+        return preparer.format_table(table, use_schema=False)
 
     def visit_create_index(self, create):
         index = create.element
@@ -280,7 +295,7 @@ class SQLiteDDLCompiler(compiler.DDLCompiler):
             text += "UNIQUE "
         text += "INDEX %s ON %s (%s)" \
                     % (preparer.format_index(index,
-                       name=self._validate_identifier(index.name, True)),
+                       name=self._index_identifier(index.name)),
                        preparer.format_table(index.table, use_schema=False),
                        ', '.join(preparer.quote(c.name, c.quote)
                                  for c in index.columns))
@@ -329,7 +344,7 @@ class SQLiteDialect(default.DefaultDialect):
     supports_default_values = True
     supports_empty_insert = False
     supports_cast = True
-    
+
     default_paramstyle = 'qmark'
     statement_compiler = SQLiteCompiler
     ddl_compiler = SQLiteDDLCompiler
@@ -350,7 +365,7 @@ class SQLiteDialect(default.DefaultDialect):
                 "Valid isolation levels for sqlite are 'SERIALIZABLE' and "
                 "'READ UNCOMMITTED'.")
         self.isolation_level = isolation_level
-        
+
         # this flag used by pysqlite dialect, and perhaps others in the
         # future, to indicate the driver is handling date/timestamp
         # conversions (and perhaps datetime/time as well on some 
@@ -363,14 +378,14 @@ class SQLiteDialect(default.DefaultDialect):
             self.supports_cast = \
                                 self.dbapi.sqlite_version_info >= (3, 2, 3)
 
-        
+
     def on_connect(self):
         if self.isolation_level is not None:
             if self.isolation_level == 'READ UNCOMMITTED':
                 isolation_level = 1
             else:
                 isolation_level = 0
-                
+
             def connect(conn):
                 cursor = conn.cursor()
                 cursor.execute("PRAGMA read_uncommitted = %d" % isolation_level)
@@ -598,7 +613,7 @@ class SQLiteDialect(default.DefaultDialect):
 
 def _pragma_cursor(cursor):
     """work around SQLite issue whereby cursor.description is blank when PRAGMA returns no rows."""
-    
+
     if cursor.closed:
-        cursor._fetchone_impl = lambda: None
+        cursor.fetchone = lambda: None
     return cursor

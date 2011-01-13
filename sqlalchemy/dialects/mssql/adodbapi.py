@@ -1,3 +1,9 @@
+# mssql/adodbapi.py
+# Copyright (C) 2005-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
+#
+# This module is part of SQLAlchemy and is released under
+# the MIT License: http://www.opensource.org/licenses/mit-license.php
+
 """
 The adodbapi dialect is not implemented for 0.6 at this time.
 
@@ -9,7 +15,8 @@ import sys
 class MSDateTime_adodbapi(MSDateTime):
     def result_processor(self, dialect, coltype):
         def process(value):
-            # adodbapi will return datetimes with empty time values as datetime.date() objects.
+            # adodbapi will return datetimes with empty time 
+            # values as datetime.date() objects.
             # Promote them back to full datetime.datetime()
             if type(value) is datetime.date:
                 return datetime.datetime(value.year, value.month, value.day)
@@ -23,7 +30,7 @@ class MSDialect_adodbapi(MSDialect):
     supports_unicode = sys.maxunicode == 65535
     supports_unicode_statements = True
     driver = 'adodbapi'
-    
+
     @classmethod
     def import_dbapi(cls):
         import adodbapi as module
@@ -41,7 +48,8 @@ class MSDialect_adodbapi(MSDialect):
 
         connectors = ["Provider=SQLOLEDB"]
         if 'port' in keys:
-            connectors.append ("Data Source=%s, %s" % (keys.get("host"), keys.get("port")))
+            connectors.append ("Data Source=%s, %s" % 
+                                (keys.get("host"), keys.get("port")))
         else:
             connectors.append ("Data Source=%s" % keys.get("host"))
         connectors.append ("Initial Catalog=%s" % keys.get("database"))
@@ -54,6 +62,7 @@ class MSDialect_adodbapi(MSDialect):
         return [[";".join (connectors)], {}]
 
     def is_disconnect(self, e):
-        return isinstance(e, self.dbapi.adodbapi.DatabaseError) and "'connection failure'" in str(e)
+        return isinstance(e, self.dbapi.adodbapi.DatabaseError) and \
+                            "'connection failure'" in str(e)
 
 dialect = MSDialect_adodbapi

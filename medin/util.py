@@ -107,7 +107,7 @@ def check_environment():
 
     # check we've got minimum sqlalchemy support
     version_cur = Version.parse(sqlalchemy.__version__)
-    version_min = Version(0, 6, 1)
+    version_min = Version(0, 6, 6)
     if version_cur < version_min:
         raise EnvironmentError('Your version of SQLAlchemy is %s, it needs to be at least %s' % (version_cur, version_min))
 

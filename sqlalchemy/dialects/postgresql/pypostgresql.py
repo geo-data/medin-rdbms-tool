@@ -1,9 +1,15 @@
+# postgresql/pypostgresql.py
+# Copyright (C) 2005-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
+#
+# This module is part of SQLAlchemy and is released under
+# the MIT License: http://www.opensource.org/licenses/mit-license.php
+
 """Support for the PostgreSQL database via py-postgresql.
 
 Connecting
 ----------
 
-URLs are of the form `postgresql+pypostgresql://user@password@host:port/dbname[?key=value&key=value...]`.
+URLs are of the form ``postgresql+pypostgresql://user@password@host:port/dbname[?key=value&key=value...]``.
 
 
 """

@@ -1,3 +1,9 @@
+# sqlalchemy/queue.py
+# Copyright (C) 2005-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
+#
+# This module is part of SQLAlchemy and is released under
+# the MIT License: http://www.opensource.org/licenses/mit-license.php
+
 """An adaptation of Py2.3/2.4's Queue module which supports reentrant
 behavior, using RLock instead of Lock for its mutex object.
 
@@ -52,7 +58,8 @@ class Queue:
         return n
 
     def empty(self):
-        """Return True if the queue is empty, False otherwise (not reliable!)."""
+        """Return True if the queue is empty, False otherwise (not
+        reliable!)."""
 
         self.mutex.acquire()
         n = self._empty()
@@ -60,7 +67,8 @@ class Queue:
         return n
 
     def full(self):
-        """Return True if the queue is full, False otherwise (not reliable!)."""
+        """Return True if the queue is full, False otherwise (not
+        reliable!)."""
 
         self.mutex.acquire()
         n = self._full()

@@ -1,3 +1,9 @@
+# test/entities.py
+# Copyright (C) 2005-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
+#
+# This module is part of SQLAlchemy and is released under
+# the MIT License: http://www.opensource.org/licenses/mit-license.php
+
 import sqlalchemy as sa
 from sqlalchemy import exc as sa_exc
 
@@ -50,7 +56,7 @@ class ComparableEntity(BasicEntity):
                 self_key = sa.orm.attributes.instance_state(self).key
             except sa.orm.exc.NO_STATE:
                 self_key = None
-                
+
             if other is None:
                 a = self
                 b = other

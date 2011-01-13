@@ -1,3 +1,11 @@
+# mssql/information_schema.py
+# Copyright (C) 2005-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
+#
+# This module is part of SQLAlchemy and is released under
+# the MIT License: http://www.opensource.org/licenses/mit-license.php
+
+# TODO: should be using the sys. catalog with SQL Server, not information schema
+
 from sqlalchemy import Table, MetaData, Column, ForeignKey
 from sqlalchemy.types import String, Unicode, Integer, TypeDecorator
 
@@ -5,12 +13,12 @@ ischema = MetaData()
 
 class CoerceUnicode(TypeDecorator):
     impl = Unicode
-    
+
     def process_bind_param(self, value, dialect):
         if isinstance(value, str):
             value = value.decode(dialect.encoding)
         return value
-    
+
 schemata = Table("SCHEMATA", ischema,
     Column("CATALOG_NAME", CoerceUnicode, key="catalog_name"),
     Column("SCHEMA_NAME", CoerceUnicode, key="schema_name"),
@@ -64,9 +72,14 @@ ref_constraints = Table("REFERENTIAL_CONSTRAINTS", ischema,
     Column("CONSTRAINT_CATALOG", CoerceUnicode, key="constraint_catalog"),
     Column("CONSTRAINT_SCHEMA", CoerceUnicode, key="constraint_schema"),
     Column("CONSTRAINT_NAME", CoerceUnicode, key="constraint_name"),
-    Column("UNIQUE_CONSTRAINT_CATLOG", CoerceUnicode, key="unique_constraint_catalog"),  # TODO: is CATLOG misspelled ?
-    Column("UNIQUE_CONSTRAINT_SCHEMA", CoerceUnicode, key="unique_constraint_schema"),
-    Column("UNIQUE_CONSTRAINT_NAME", CoerceUnicode, key="unique_constraint_name"),
+    # TODO: is CATLOG misspelled ?
+    Column("UNIQUE_CONSTRAINT_CATLOG", CoerceUnicode,
+                                        key="unique_constraint_catalog"),
+
+    Column("UNIQUE_CONSTRAINT_SCHEMA", CoerceUnicode,
+                                        key="unique_constraint_schema"),
+    Column("UNIQUE_CONSTRAINT_NAME", CoerceUnicode,
+                                        key="unique_constraint_name"),
     Column("MATCH_OPTION", String, key="match_option"),
     Column("UPDATE_RULE", String, key="update_rule"),
     Column("DELETE_RULE", String, key="delete_rule"),

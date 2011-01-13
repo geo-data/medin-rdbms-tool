@@ -1,3 +1,9 @@
+# mssql/zxjdbc.py
+# Copyright (C) 2005-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
+#
+# This module is part of SQLAlchemy and is released under
+# the MIT License: http://www.opensource.org/licenses/mit-license.php
+
 """Support for the Microsoft SQL Server database via the zxjdbc JDBC
 connector.
 
@@ -44,11 +50,13 @@ class MSExecutionContext_zxjdbc(MSExecutionContext):
                     self.cursor.nextset()
             self._lastrowid = int(row[0])
 
-        if (self.isinsert or self.isupdate or self.isdelete) and self.compiled.returning:
+        if (self.isinsert or self.isupdate or self.isdelete) and \
+            self.compiled.returning:
             self._result_proxy = base.FullyBufferedResultProxy(self)
 
         if self._enable_identity_insert:
-            table = self.dialect.identifier_preparer.format_table(self.compiled.statement.table)
+            table = self.dialect.identifier_preparer.format_table(
+                                        self.compiled.statement.table)
             self.cursor.execute("SET IDENTITY_INSERT %s OFF" % table)
 
 
@@ -59,6 +67,9 @@ class MSDialect_zxjdbc(ZxJDBCConnector, MSDialect):
     execution_ctx_cls = MSExecutionContext_zxjdbc
 
     def _get_server_version_info(self, connection):
-        return tuple(int(x) for x in connection.connection.dbversion.split('.'))
+        return tuple(
+                    int(x) 
+                    for x in connection.connection.dbversion.split('.')
+                )
 
 dialect = MSDialect_zxjdbc

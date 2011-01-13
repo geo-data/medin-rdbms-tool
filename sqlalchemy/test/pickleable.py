@@ -1,3 +1,9 @@
+# test/pickleable.py
+# Copyright (C) 2005-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
+#
+# This module is part of SQLAlchemy and is released under
+# the MIT License: http://www.opensource.org/licenses/mit-license.php
+
 """
 
 some objects used for pickle tests, declared in their own module so that they
@@ -33,11 +39,11 @@ class OldSchool:
     def __eq__(self, other):
         return other.__class__ is self.__class__ and other.x==self.x and other.y==self.y
 
-class OldSchoolWithoutCompare:    
+class OldSchoolWithoutCompare:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-    
+
 class BarWithoutCompare(object):
     def __init__(self, x, y):
         self.x = x

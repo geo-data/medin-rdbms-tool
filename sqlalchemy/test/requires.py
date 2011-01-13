@@ -1,3 +1,9 @@
+# test/requires.py
+# Copyright (C) 2005-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
+#
+# This module is part of SQLAlchemy and is released under
+# the MIT License: http://www.opensource.org/licenses/mit-license.php
+
 """Global database feature support policy.
 
 Provides decorators to mark tests requiring specific feature support from the
@@ -52,8 +58,9 @@ def boolean_col_expressions(fn):
         no_support('mssql', 'not supported by database'),
         no_support('sybase', 'not supported by database'),
         no_support('maxdb', 'FIXME: verify not supported by database'),
+        no_support('informix', 'not supported by database'),
     )
-    
+
 def identity(fn):
     """Target database must support GENERATED AS IDENTITY or a facsimile.
 
@@ -98,19 +105,19 @@ def row_triggers(fn):
         # no access to same table
         no_support('mysql', 'requires SUPER priv'),
         exclude('mysql', '<', (5, 0, 10), 'not supported by database'),
-        
+
         # huh?  TODO: implement triggers for PG tests, remove this
-        no_support('postgresql', 'PG triggers need to be implemented for tests'),  
+        no_support('postgresql', 'PG triggers need to be implemented for tests'),
         )
 
 def correlated_outer_joins(fn):
     """Target must support an outer join to a subquery which correlates to the parent."""
-    
+
     return _chain_decorators_on(
         fn,
         no_support('oracle', 'Raises "ORA-01799: a column may not be outer-joined to a subquery"')
     )
-    
+
 def savepoints(fn):
     """Target database must support savepoints."""
     return _chain_decorators_on(
@@ -120,25 +127,26 @@ def savepoints(fn):
         no_support('sqlite', 'not supported by database'),
         no_support('sybase', 'FIXME: guessing, needs confirmation'),
         exclude('mysql', '<', (5, 0, 3), 'not supported by database'),
+        exclude('informix', '<', (11, 55, 'xC3'), 'not supported by database'),
         )
 
 def denormalized_names(fn):
     """Target database must have 'denormalized', i.e. UPPERCASE as case insensitive names."""
-    
+
     return skip_if(
                 lambda: not testing.db.dialect.requires_name_normalize,
                 "Backend does not require denomralized names."
             )(fn)
-    
+
 def schemas(fn):
     """Target database must support external schemas, and have one named 'test_schema'."""
-    
+
     return _chain_decorators_on(
         fn,
         no_support('sqlite', 'no schema support'),
         no_support('firebird', 'no schema support')
     )
-    
+
 def sequences(fn):
     """Target database must support SEQUENCEs."""
     return _chain_decorators_on(
@@ -148,6 +156,7 @@ def sequences(fn):
         no_support('mysql', 'no SEQUENCE support'),
         no_support('sqlite', 'no SEQUENCE support'),
         no_support('sybase', 'no SEQUENCE support'),
+        no_support('informix', 'no SEQUENCE support'),
         )
 
 def update_nowait(fn):
@@ -161,7 +170,7 @@ def update_nowait(fn):
         no_support('sqlite', 'no FOR UPDATE NOWAIT support'),
         no_support('sybase', 'no FOR UPDATE NOWAIT support'),
     )
-    
+
 def subqueries(fn):
     """Target database must support subqueries."""
     return _chain_decorators_on(
@@ -176,6 +185,7 @@ def intersect(fn):
         fails_on('firebird', 'no support for INTERSECT'),
         fails_on('mysql', 'no support for INTERSECT'),
         fails_on('sybase', 'no support for INTERSECT'),
+        fails_on('informix', 'no support for INTERSECT'),
     )
 
 def except_(fn):
@@ -185,6 +195,7 @@ def except_(fn):
         fails_on('firebird', 'no support for EXCEPT'),
         fails_on('mysql', 'no support for EXCEPT'),
         fails_on('sybase', 'no support for EXCEPT'),
+        fails_on('informix', 'no support for EXCEPT'),
     )
 
 def offset(fn):
@@ -193,7 +204,7 @@ def offset(fn):
         fn,
         fails_on('sybase', 'no support for OFFSET or equivalent'),
     )
-    
+
 def returning(fn):
     return _chain_decorators_on(
         fn,
@@ -204,7 +215,7 @@ def returning(fn):
         no_support('sybase', 'not supported by database'),
         no_support('informix', 'not supported by database'),
     )
-    
+
 def two_phase_transactions(fn):
     """Target database must support two-phase transactions."""
     return _chain_decorators_on(
@@ -247,13 +258,31 @@ def sane_rowcount(fn):
         skip_if(lambda: not testing.db.dialect.supports_sane_rowcount)
     )
 
+def cextensions(fn):
+    return _chain_decorators_on(
+        fn,
+        skip_if(lambda: not _has_cextensions(), "C extensions not installed")
+    )
+
+def dbapi_lastrowid(fn):
+    return _chain_decorators_on(
+        fn,
+        fails_on_everything_except('mysql+mysqldb', 'mysql+oursql', 'sqlite+pysqlite')
+    )
+
+def sane_multi_rowcount(fn):
+    return _chain_decorators_on(
+        fn,
+        skip_if(lambda: not testing.db.dialect.supports_sane_multi_rowcount)
+    )
+
 def reflects_pk_names(fn):
     """Target driver reflects the name of primary key constraints."""
     return _chain_decorators_on(
         fn,
-        fails_on_everything_except('postgresql')
+        fails_on_everything_except('postgresql', 'oracle')
     )
-    
+
 def python2(fn):
     return _chain_decorators_on(
         fn,
@@ -262,7 +291,32 @@ def python2(fn):
             "Python version 2.xx is required."
             )
     )
-    
+
+def python26(fn):
+    return _chain_decorators_on(
+        fn,
+        skip_if(
+            lambda: sys.version_info < (2, 6),
+            "Python version 2.6 or greater is required"
+        )
+    )
+
+def python25(fn):
+    return _chain_decorators_on(
+        fn,
+        skip_if(
+            lambda: sys.version_info < (2, 5),
+            "Python version 2.5 or greater is required"
+        )
+    )
+
+def _has_cextensions():
+    try:
+        from sqlalchemy import cresultproxy, cprocessors
+        return True
+    except ImportError:
+        return False
+
 def _has_sqlite():
     from sqlalchemy import create_engine
     try:

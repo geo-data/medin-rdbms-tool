@@ -1,5 +1,5 @@
-# topological.py
-# Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010 Michael Bayer mike_mp@zzzcomputing.com
+# sqlalchemy/topological.py
+# Copyright (C) 2005-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
 #
 # This module is part of SQLAlchemy and is released under
 # the MIT License: http://www.opensource.org/licenses/mit-license.php
@@ -9,6 +9,7 @@
 from sqlalchemy.exc import CircularDependencyError
 from sqlalchemy import util
 
+
 __all__ = ['sort', 'sort_as_subsets', 'find_cycles']
 
 def sort_as_subsets(tuples, allitems):
@@ -16,7 +17,7 @@ def sort_as_subsets(tuples, allitems):
     edges = util.defaultdict(set)
     for parent, child in tuples:
         edges[child].add(parent)
-    
+
     todo = set(allitems)
 
     while todo:
@@ -27,8 +28,10 @@ def sort_as_subsets(tuples, allitems):
 
         if not output:
             raise CircularDependencyError(
-                    "Circular dependency detected: cycles: %r all edges: %s" % 
-                    (find_cycles(tuples, allitems), _dump_edges(edges, True)))
+                    "Circular dependency detected",
+                    find_cycles(tuples, allitems), 
+                    _gen_edges(edges)
+                )
 
         todo.difference_update(output)
         yield output
@@ -52,7 +55,7 @@ def find_cycles(tuples, allitems):
         edges[parent].add(child)
 
     output = set()
-    
+
     while todo:
         node = todo.pop()
         stack = [node]
@@ -63,7 +66,7 @@ def find_cycles(tuples, allitems):
                     cyc = stack[stack.index(node):]
                     todo.difference_update(cyc)
                     output.update(cyc)
-                    
+
                 if node in todo:
                     stack.append(node)
                     todo.remove(node)
@@ -72,14 +75,9 @@ def find_cycles(tuples, allitems):
                 node = stack.pop()
     return output
 
-def _dump_edges(edges, reverse):
-    l = []
-    for left in edges:
-        for right in edges[left]:
-            if reverse:
-                l.append((right, left))
-            else:
-                l.append((left, right))
-    return repr(l)
-
-
+def _gen_edges(edges):
+    return set([
+                    (right, left) 
+                    for left in edges 
+                    for right in edges[left] 
+                ])

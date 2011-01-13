@@ -1,12 +1,13 @@
-# scoping.py
-# Copyright (C) the SQLAlchemy authors and contributors
+# orm/scoping.py
+# Copyright (C) 2005-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
 #
 # This module is part of SQLAlchemy and is released under
 # the MIT License: http://www.opensource.org/licenses/mit-license.php
 
 import sqlalchemy.exceptions as sa_exc
 from sqlalchemy.util import ScopedRegistry, ThreadLocalRegistry, \
-                            to_list, get_cls_kwargs, deprecated
+                            to_list, get_cls_kwargs, deprecated,\
+                            warn
 from sqlalchemy.orm import (
     EXT_CONTINUE, MapperExtension, class_mapper, object_session
     )
@@ -22,9 +23,13 @@ class ScopedSession(object):
 
     Usage::
 
-      Session = scoped_session(sessionmaker(autoflush=True))
+      Session = scoped_session(sessionmaker())
 
-      ... use session normally.
+    ... use Session normally.
+
+    The internal registry is accessible as well,
+    and by default is an instance of :class:`.ThreadLocalRegistry`.
+
 
     """
 
@@ -41,7 +46,8 @@ class ScopedSession(object):
             scope = kwargs.pop('scope', False)
             if scope is not None:
                 if self.registry.has():
-                    raise sa_exc.InvalidRequestError("Scoped session is already present; no new arguments may be specified.")
+                    raise sa_exc.InvalidRequestError("Scoped session is already present; "
+                                                    "no new arguments may be specified.")
                 else:
                     sess = self.session_factory(**kwargs)
                     self.registry.set(sess)
@@ -53,18 +59,16 @@ class ScopedSession(object):
 
     def remove(self):
         """Dispose of the current contextual session."""
-        
+
         if self.registry.has():
             self.registry().close()
         self.registry.clear()
 
-    @deprecated("Session.mapper is deprecated.  "
+    @deprecated("0.5", ":meth:`.ScopedSession.mapper` is deprecated.  "
         "Please see http://www.sqlalchemy.org/trac/wiki/UsageRecipes/SessionAwareMapper "
         "for information on how to replicate its behavior.")
     def mapper(self, *args, **kwargs):
-        """return a mapper() function which associates this ScopedSession with the Mapper.
-
-        DEPRECATED.
+        """return a :func:`.mapper` function which associates this ScopedSession with the Mapper.
 
         """
 
@@ -84,6 +88,11 @@ class ScopedSession(object):
     def configure(self, **kwargs):
         """reconfigure the sessionmaker used by this ScopedSession."""
 
+        if self.registry.has():
+            warn('At least one scoped session is already present. '
+                      ' configure() can not affect sessions that have '
+                      'already been created.')
+
         self.session_factory.configure(**kwargs)
 
     def query_property(self, query_cls=None):
@@ -91,6 +100,7 @@ class ScopedSession(object):
         class when called.
 
         e.g.::
+
             Session = scoped_session(sessionmaker())
 
             class MyClass(object):

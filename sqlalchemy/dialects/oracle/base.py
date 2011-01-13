@@ -1,8 +1,9 @@
 # oracle/base.py
-# Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010 Michael Bayer mike_mp@zzzcomputing.com
+# Copyright (C) 2005-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
 #
 # This module is part of SQLAlchemy and is released under
 # the MIT License: http://www.opensource.org/licenses/mit-license.php
+
 """Support for the Oracle database.
 
 Oracle version 8 through current (11g at the time of this writing) are supported.
@@ -131,7 +132,7 @@ from sqlalchemy.sql import operators as sql_operators, functions as sql_function
 from sqlalchemy import types as sqltypes
 from sqlalchemy.types import VARCHAR, NVARCHAR, CHAR, DATE, DATETIME, \
                 BLOB, CLOB, TIMESTAMP, FLOAT
-                
+
 RESERVED_WORDS = set('SHARE RAW DROP BETWEEN FROM DESC OPTION PRIOR LONG THEN '
                      'DEFAULT ALTER IS INTO MINUS INTEGER NUMBER GRANT IDENTIFIED '
                      'ALL TO ORDER ON FLOAT DATE HAVING CLUSTER NOWAIT RESOURCE ANY '
@@ -154,27 +155,33 @@ NVARCHAR2 = NVARCHAR
 
 class NUMBER(sqltypes.Numeric, sqltypes.Integer):
     __visit_name__ = 'NUMBER'
-    
+
     def __init__(self, precision=None, scale=None, asdecimal=None):
         if asdecimal is None:
             asdecimal = bool(scale and scale > 0)
-                
+
         super(NUMBER, self).__init__(precision=precision, scale=scale, asdecimal=asdecimal)
-    
+
+    def adapt(self, impltype):
+        ret = super(NUMBER, self).adapt(impltype)
+        # leave a hint for the DBAPI handler
+        ret._is_oracle_number = True
+        return ret
+
     @property
     def _type_affinity(self):
         if bool(self.scale and self.scale > 0):
             return sqltypes.Numeric
         else:
             return sqltypes.Integer
-    
-            
+
+
 class DOUBLE_PRECISION(sqltypes.Numeric):
     __visit_name__ = 'DOUBLE_PRECISION'
     def __init__(self, precision=None, scale=None, asdecimal=None):
         if asdecimal is None:
             asdecimal = False
-                
+
         super(DOUBLE_PRECISION, self).__init__(precision=precision, scale=scale, asdecimal=asdecimal)
 
 class BFILE(sqltypes.LargeBinary):
@@ -185,30 +192,30 @@ class LONG(sqltypes.Text):
 
 class INTERVAL(sqltypes.TypeEngine):
     __visit_name__ = 'INTERVAL'
-    
+
     def __init__(self, 
                     day_precision=None, 
                     second_precision=None):
         """Construct an INTERVAL.
-        
+
         Note that only DAY TO SECOND intervals are currently supported.
         This is due to a lack of support for YEAR TO MONTH intervals
         within available DBAPIs (cx_oracle and zxjdbc).
-        
+
         :param day_precision: the day precision value.  this is the number of digits
           to store for the day field.  Defaults to "2"
         :param second_precision: the second precision value.  this is the number of digits
           to store for the fractional seconds field.  Defaults to "6".
-        
+
         """
         self.day_precision = day_precision
         self.second_precision = second_precision
-    
+
     @classmethod
     def _adapt_from_generic_interval(cls, interval):
         return INTERVAL(day_precision=interval.day_precision,
                         second_precision=interval.second_precision)
-        
+
     def adapt(self, impltype):
         return impltype(day_precision=self.day_precision, 
                         second_precision=self.second_precision)
@@ -216,7 +223,17 @@ class INTERVAL(sqltypes.TypeEngine):
     @property
     def _type_affinity(self):
         return sqltypes.Interval
-    
+
+class ROWID(sqltypes.TypeEngine):
+    """Oracle ROWID type.
+
+    When used in a cast() or similar, generates ROWID.
+
+    """
+    __visit_name__ = 'ROWID'
+
+
+
 class _OracleBoolean(sqltypes.Boolean):
     def get_dbapi_type(self, dbapi):
         return dbapi.NUMBER
@@ -251,19 +268,19 @@ class OracleTypeCompiler(compiler.GenericTypeCompiler):
     # Oracle DATE == DATETIME
     # Oracle does not allow milliseconds in DATE
     # Oracle does not support TIME columns
-    
+
     def visit_datetime(self, type_):
         return self.visit_DATE(type_)
-    
+
     def visit_float(self, type_):
         return self.visit_FLOAT(type_)
-        
+
     def visit_unicode(self, type_):
         if self.dialect._supports_nchar:
             return self.visit_NVARCHAR(type_)
         else:
             return self.visit_VARCHAR(type_)
-    
+
     def visit_INTERVAL(self, type_):
         return "INTERVAL DAY%s TO SECOND%s" % (
             type_.day_precision is not None and 
@@ -282,24 +299,24 @@ class OracleTypeCompiler(compiler.GenericTypeCompiler):
 
     def visit_DOUBLE_PRECISION(self, type_):
         return self._generate_numeric(type_, "DOUBLE PRECISION")
-        
+
     def visit_NUMBER(self, type_, **kw):
         return self._generate_numeric(type_, "NUMBER", **kw)
-    
+
     def _generate_numeric(self, type_, name, precision=None, scale=None):
         if precision is None:
             precision = type_.precision
-            
+
         if scale is None:
             scale = getattr(type_, 'scale', None)
-            
+
         if precision is None:
             return name
         elif scale is None:
             return "%(name)s(%(precision)s)" % {'name':name,'precision': precision}
         else:
             return "%(name)s(%(precision)s, %(scale)s)" % {'name':name,'precision': precision, 'scale' : scale}
-        
+
     def visit_VARCHAR(self, type_):
         if self.dialect._supports_char_length:
             return "VARCHAR(%(length)s CHAR)" % {'length' : type_.length}
@@ -308,7 +325,7 @@ class OracleTypeCompiler(compiler.GenericTypeCompiler):
 
     def visit_NVARCHAR(self, type_):
         return "NVARCHAR2(%(length)s)" % {'length' : type_.length}
-    
+
     def visit_text(self, type_):
         return self.visit_CLOB(type_)
 
@@ -323,26 +340,29 @@ class OracleTypeCompiler(compiler.GenericTypeCompiler):
 
     def visit_big_integer(self, type_):
         return self.visit_NUMBER(type_, precision=19)
-        
+
     def visit_boolean(self, type_):
         return self.visit_SMALLINT(type_)
-    
+
     def visit_RAW(self, type_):
         return "RAW(%(length)s)" % {'length' : type_.length}
+
+    def visit_ROWID(self, type_):
+        return "ROWID"
 
 class OracleCompiler(compiler.SQLCompiler):
     """Oracle compiler modifies the lexical structure of Select
     statements to work under non-ANSI configured Oracle databases, if
     the use_ansi flag is False.
     """
-    
+
     compound_keywords = util.update_copy(
         compiler.SQLCompiler.compound_keywords,
-        {   
+        {
         expression.CompoundSelect.EXCEPT : 'MINUS'
         }
     )
-    
+
     def __init__(self, *args, **kwargs):
         super(OracleCompiler, self).__init__(*args, **kwargs)
         self.__wheres = {}
@@ -350,27 +370,27 @@ class OracleCompiler(compiler.SQLCompiler):
 
     def visit_mod(self, binary, **kw):
         return "mod(%s, %s)" % (self.process(binary.left), self.process(binary.right))
-    
+
     def visit_now_func(self, fn, **kw):
         return "CURRENT_TIMESTAMP"
-    
+
     def visit_char_length_func(self, fn, **kw):
         return "LENGTH" + self.function_argspec(fn, **kw)
-        
+
     def visit_match_op(self, binary, **kw):
         return "CONTAINS (%s, %s)" % (self.process(binary.left), self.process(binary.right))
-    
+
     def get_select_hint_text(self, byfroms):
         return " ".join(
             "/*+ %s */" % text for table, text in byfroms.items()
         )
-        
+
     def function_argspec(self, fn, **kw):
         if len(fn.clauses) > 0:
             return compiler.SQLCompiler.function_argspec(self, fn, **kw)
         else:
             return ""
-        
+
     def default_from(self):
         """Called when a ``SELECT`` statement has no froms, and no ``FROM`` clause is to be appended.
 
@@ -402,15 +422,15 @@ class OracleCompiler(compiler.SQLCompiler):
                                 {'binary':visit_binary}))
             else:
                 clauses.append(join.onclause)
-            
+
             for j in join.left, join.right:
                 if isinstance(j, expression.Join):
                     visit_join(j)
-                
+
         for f in froms:
             if isinstance(f, expression.Join):
                 visit_join(f)
-        
+
         if not clauses:
             return None
         else:
@@ -424,11 +444,11 @@ class OracleCompiler(compiler.SQLCompiler):
 
     def visit_alias(self, alias, asfrom=False, ashint=False, **kwargs):
         """Oracle doesn't like ``FROM table AS alias``.  Is the AS standard SQL??"""
-        
+
         if asfrom or ashint:
             alias_name = isinstance(alias.name, expression._generated_label) and \
                             self._truncated_identifier("alias", alias.name) or alias.name
-        
+
         if ashint:
             return alias_name
         elif asfrom:
@@ -438,19 +458,19 @@ class OracleCompiler(compiler.SQLCompiler):
             return self.process(alias.original, **kwargs)
 
     def returning_clause(self, stmt, returning_cols):
-            
+
         def create_out_param(col, i):
             bindparam = sql.outparam("ret_%d" % i, type_=col.type)
             self.binds[bindparam.key] = bindparam
             return self.bindparam_string(self._truncate_bindparam(bindparam))
-        
+
         columnlist = list(expression._select_iterables(returning_cols))
-        
+
         # within_columns_clause =False so that labels (foo AS bar) don't render
         columns = [self.process(c, within_columns_clause=False, result_map=self.result_map) for c in columnlist]
-        
+
         binds = [create_out_param(c, i) for i, c in enumerate(columnlist)]
-        
+
         return 'RETURNING ' + ', '.join(columns) +  " INTO " + ", ".join(binds)
 
     def _TODO_visit_compound_select(self, select):
@@ -468,7 +488,7 @@ class OracleCompiler(compiler.SQLCompiler):
                     existingfroms = self.stack[-1]['from']
                 else:
                     existingfroms = None
-                
+
                 froms = select._get_display_froms(existingfroms)
                 whereclause = self._get_nonansi_join_whereclause(froms)
                 if whereclause is not None:
@@ -497,7 +517,7 @@ class OracleCompiler(compiler.SQLCompiler):
 
                 limitselect._oracle_visit = True
                 limitselect._is_wrapper = True
-                
+
                 # If needed, add the limiting clause
                 if select._limit is not None:
                     max_row = select._limit
@@ -547,7 +567,7 @@ class OracleDDLCompiler(compiler.DDLCompiler):
         text = ""
         if constraint.ondelete is not None:
             text += " ON DELETE %s" % constraint.ondelete
-            
+
         # oracle has no ON UPDATE CASCADE - 
         # its only available via triggers http://asktom.oracle.com/tkyte/update_cascade/index.html
         if constraint.onupdate is not None:
@@ -555,11 +575,11 @@ class OracleDDLCompiler(compiler.DDLCompiler):
                 "Oracle does not contain native UPDATE CASCADE "
                  "functionality - onupdates will not be rendered for foreign keys. "
                  "Consider using deferrable=True, initially='deferred' or triggers.")
-        
+
         return text
 
 class OracleIdentifierPreparer(compiler.IdentifierPreparer):
-    
+
     reserved_words = set([x.lower() for x in RESERVED_WORDS])
     illegal_initial_characters = set(xrange(0, 10)).union(["_", "$"])
 
@@ -570,18 +590,18 @@ class OracleIdentifierPreparer(compiler.IdentifierPreparer):
                 or value[0] in self.illegal_initial_characters
                 or not self.legal_characters.match(unicode(value))
                 )
-    
+
     def format_savepoint(self, savepoint):
         name = re.sub(r'^_+', '', savepoint.ident)
         return super(OracleIdentifierPreparer, self).format_savepoint(savepoint, name)
-        
-        
+
+
 class OracleExecutionContext(default.DefaultExecutionContext):
     def fire_sequence(self, seq):
-        return self._execute_scalar("SELECT " + 
+        return int(self._execute_scalar("SELECT " + 
                     self.dialect.identifier_preparer.format_sequence(seq) + 
-                    ".nextval FROM DUAL")
-    
+                    ".nextval FROM DUAL"))
+
 class OracleDialect(default.DefaultDialect):
     name = 'oracle'
     supports_alter = True
@@ -594,21 +614,21 @@ class OracleDialect(default.DefaultDialect):
     supports_sequences = True
     sequences_optional = False
     postfetch_lastrowid = False
-    
+
     default_paramstyle = 'named'
     colspecs = colspecs
     ischema_names = ischema_names
     requires_name_normalize = True
-    
+
     supports_default_values = False
     supports_empty_insert = False
-    
+
     statement_compiler = OracleCompiler
     ddl_compiler = OracleDDLCompiler
     type_compiler = OracleTypeCompiler
     preparer = OracleIdentifierPreparer
     execution_ctx_cls = OracleExecutionContext
-    
+
     reflection_options = ('oracle_resolve_synonyms', )
 
     def __init__(self, 
@@ -621,8 +641,10 @@ class OracleDialect(default.DefaultDialect):
 
     def initialize(self, connection):
         super(OracleDialect, self).initialize(connection)
-        self.implicit_returning = self.server_version_info > (10, ) and \
-                                        self.__dict__.get('implicit_returning', True)
+        self.implicit_returning = self.__dict__.get(
+                                    'implicit_returning',
+                                    self.server_version_info > (10, )
+                                    )
 
         if self._is_oracle_8:
             self.colspecs = self.colspecs.copy()
@@ -633,15 +655,15 @@ class OracleDialect(default.DefaultDialect):
     def _is_oracle_8(self):
         return self.server_version_info and \
                     self.server_version_info < (9, )
-        
-    @util.memoized_property
+
+    @property
     def _supports_char_length(self):
         return not self._is_oracle_8
 
-    @util.memoized_property
+    @property
     def _supports_nchar(self):
         return not self._is_oracle_8
-        
+
     def do_release_savepoint(self, connection, name):
         # Oracle does not support RELEASE SAVEPOINT
         pass
@@ -850,7 +872,7 @@ class OracleDialect(default.DefaultDialect):
     def get_indexes(self, connection, table_name, schema=None,
                     resolve_synonyms=False, dblink='', **kw):
 
-        
+
         info_cache = kw.get('info_cache')
         (table_name, schema, dblink, synonym) = \
             self._prepare_reflection_args(connection, table_name, schema,
@@ -865,7 +887,7 @@ class OracleDialect(default.DefaultDialect):
             a.index_name = b.index_name
             AND a.table_owner = b.table_owner
             AND a.table_name = b.table_name
-        
+
         AND a.table_name = :table_name
         AND a.table_owner = :schema
         ORDER BY a.index_name, a.column_position""" % {'dblink': dblink})
@@ -878,13 +900,24 @@ class OracleDialect(default.DefaultDialect):
                                       dblink=dblink,
                                       info_cache=kw.get('info_cache'))
         uniqueness = dict(NONUNIQUE=False, UNIQUE=True)
-        
+
         oracle_sys_col = re.compile(r'SYS_NC\d+\$', re.IGNORECASE)
+
+        def upper_name_set(names):
+            return set([i.upper() for i in names])
+
+        pk_names = upper_name_set(pkeys)
+
+        def remove_if_primary_key(index):
+            # don't include the primary key index
+            if index is not None and \
+               upper_name_set(index['column_names']) == pk_names:
+                indexes.pop()
+
+        index = None
         for rset in rp:
-            # don't include the primary key columns
-            if rset.column_name in [s.upper() for s in pkeys]:
-                continue
             if rset.index_name != last_index_name:
+                remove_if_primary_key(index)
                 index = dict(name=self.normalize_name(rset.index_name), column_names=[])
                 indexes.append(index)
             index['unique'] = uniqueness.get(rset.uniqueness, False)
@@ -894,6 +927,7 @@ class OracleDialect(default.DefaultDialect):
             if not oracle_sys_col.match(rset.column_name):
                 index['column_names'].append(self.normalize_name(rset.column_name))
             last_index_name = rset.index_name
+        remove_if_primary_key(index)
         return indexes
 
     @reflection.cache
@@ -926,7 +960,6 @@ class OracleDialect(default.DefaultDialect):
         constraint_data = rp.fetchall()
         return constraint_data
 
-    @reflection.cache
     def get_primary_keys(self, connection, table_name, schema=None, **kw):
         """
 
@@ -937,7 +970,10 @@ class OracleDialect(default.DefaultDialect):
             dblink
 
         """
+        return self._get_primary_keys(connection, table_name, schema, **kw)[0]
 
+    @reflection.cache
+    def _get_primary_keys(self, connection, table_name, schema=None, **kw):
         resolve_synonyms = kw.get('oracle_resolve_synonyms', False)
         dblink = kw.get('dblink', '')
         info_cache = kw.get('info_cache')
@@ -947,17 +983,28 @@ class OracleDialect(default.DefaultDialect):
                                           resolve_synonyms, dblink,
                                           info_cache=info_cache)
         pkeys = []
+        constraint_name = None
         constraint_data = self._get_constraint_data(connection, table_name,
                                         schema, dblink,
                                         info_cache=kw.get('info_cache'))
-                                        
+
         for row in constraint_data:
             #print "ROW:" , row
             (cons_name, cons_type, local_column, remote_table, remote_column, remote_owner) = \
                 row[0:2] + tuple([self.normalize_name(x) for x in row[2:6]])
             if cons_type == 'P':
+                if constraint_name is None:
+                    constraint_name = self.normalize_name(cons_name)
                 pkeys.append(local_column)
-        return pkeys
+        return pkeys, constraint_name
+
+    def get_pk_constraint(self, connection, table_name, schema=None, **kw):
+        cols, name = self._get_primary_keys(connection, table_name, schema=schema, **kw)
+
+        return {
+            'constrained_columns':cols,
+            'name':name
+        }
 
     @reflection.cache
     def get_foreign_keys(self, connection, table_name, schema=None, **kw):
@@ -995,7 +1042,7 @@ class OracleDialect(default.DefaultDialect):
             }
 
         fkeys = util.defaultdict(fkey_rec)
-        
+
         for row in constraint_data:
             (cons_name, cons_type, local_column, remote_table, remote_column, remote_owner) = \
                     row[0:2] + tuple([self.normalize_name(x) for x in row[2:6]])
@@ -1024,12 +1071,12 @@ class OracleDialect(default.DefaultDialect):
                         if ref_synonym:
                             remote_table = self.normalize_name(ref_synonym)
                             remote_owner = self.normalize_name(ref_remote_owner)
-                    
+
                     rec['referred_table'] = remote_table
-                    
+
                     if requested_schema is not None or self.denormalize_name(remote_owner) != schema:
                         rec['referred_schema'] = remote_owner
-                
+
                 local_cols.append(local_column)
                 remote_cols.append(remote_column)
 
@@ -1059,7 +1106,7 @@ class OracleDialect(default.DefaultDialect):
 
 class _OuterJoinColumn(sql.ClauseElement):
     __visit_name__ = 'outer_join_column'
-    
+
     def __init__(self, column):
         self.column = column
 

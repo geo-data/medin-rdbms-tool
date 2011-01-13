@@ -1,3 +1,9 @@
+# test/profiling.py
+# Copyright (C) 2005-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
+#
+# This module is part of SQLAlchemy and is released under
+# the MIT License: http://www.opensource.org/licenses/mit-license.php
+
 """Profiling support for unit and performance tests.
 
 These are special purpose profiling methods which operate
@@ -6,7 +12,7 @@ in a more fine-grained way than nose's profiling plugin.
 """
 
 import os, sys
-from sqlalchemy.test import config
+from sqlalchemy_nose import config
 from sqlalchemy.test.util import function_named, gc_collect
 from nose import SkipTest
 
@@ -98,7 +104,7 @@ def function_call_count(count=None, versions={}, variance=0.05):
         cextension = True
     except ImportError:
         cextension = False
-        
+
     while version_info:
         version = '.'.join([str(v) for v in version_info])
         if cextension:

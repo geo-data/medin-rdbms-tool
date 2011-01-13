@@ -1,4 +1,5 @@
-# processors.py
+# sqlalchemy/processors.py
+# Copyright (C) 2010-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
 # Copyright (C) 2010 Gaetan de Menten gdementen@gmail.com
 #
 # This module is part of SQLAlchemy and is released under
@@ -26,6 +27,12 @@ def str_to_datetime_processor_factory(regexp, type_):
             return type_(*map(int, rmatch(value).groups(0)))
     return process
 
+def boolean_to_int(value):
+    if value is None:
+        return None
+    else:
+        return int(value)
+
 try:
     from sqlalchemy.cprocessors import UnicodeResultProcessor, \
                                        DecimalResultProcessor, \
@@ -39,7 +46,7 @@ try:
             return UnicodeResultProcessor(encoding, errors).process
         else:
             return UnicodeResultProcessor(encoding).process
-    
+
     def to_decimal_processor_factory(target_class, scale=10):
         # Note that the scale argument is not taken into account for integer
         # values in the C implementation while it is in the Python one. 
@@ -90,7 +97,8 @@ except ImportError:
         else:
             return value and True or False
 
-    DATETIME_RE = re.compile("(\d+)-(\d+)-(\d+) (\d+):(\d+):(\d+)(?:\.(\d+))?")
+    DATETIME_RE = re.compile(
+                        "(\d+)-(\d+)-(\d+) (\d+):(\d+):(\d+)(?:\.(\d+))?")
     TIME_RE = re.compile("(\d+):(\d+):(\d+)(?:\.(\d+))?")
     DATE_RE = re.compile("(\d+)-(\d+)-(\d+)")
 

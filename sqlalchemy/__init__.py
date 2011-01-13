@@ -1,5 +1,5 @@
-# __init__.py
-# Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010 Michael Bayer mike_mp@zzzcomputing.com
+# sqlalchemy/__init__.py
+# Copyright (C) 2005-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
 #
 # This module is part of SQLAlchemy and is released under
 # the MIT License: http://www.opensource.org/licenses/mit-license.php
@@ -43,6 +43,7 @@ from sqlalchemy.sql import (
     subquery,
     text,
     tuple_,
+    type_coerce,
     union,
     union_all,
     update,
@@ -113,7 +114,7 @@ from sqlalchemy.engine import create_engine, engine_from_config
 
 __all__ = sorted(name for name, obj in locals().items()
                  if not (name.startswith('_') or inspect.ismodule(obj)))
-                 
-__version__ = '0.6.1'
+
+__version__ = '0.6.6'
 
 del inspect, sys

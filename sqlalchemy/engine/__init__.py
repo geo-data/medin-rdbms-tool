@@ -1,5 +1,5 @@
 # engine/__init__.py
-# Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010 Michael Bayer mike_mp@zzzcomputing.com
+# Copyright (C) 2005-2011 the SQLAlchemy authors and contributors <see AUTHORS file>
 #
 # This module is part of SQLAlchemy and is released under
 # the MIT License: http://www.opensource.org/licenses/mit-license.php
@@ -51,7 +51,7 @@ url.py
 """
 
 # not sure what this was used for
-#import sqlalchemy.databases  
+#import sqlalchemy.databases
 
 from sqlalchemy.engine.base import (
     BufferedColumnResultProxy,
@@ -132,12 +132,19 @@ def create_engine(*args, **kwargs):
         additional keyword arguments.
 
     :param convert_unicode=False: if set to True, all
-        String/character based types will convert Unicode values to raw
-        byte values going into the database, and all raw byte values to
+        String/character based types will convert Python Unicode values to raw
+        byte values sent to the DBAPI as bind parameters, and all raw byte values to
         Python Unicode coming out in result sets. This is an
-        engine-wide method to provide unicode conversion across the
-        board. For unicode conversion on a column-by-column level, use
-        the ``Unicode`` column type instead, described in `types`.
+        engine-wide method to provide Unicode conversion across the
+        board for those DBAPIs that do not accept Python Unicode objects
+        as input.  For Unicode conversion on a column-by-column level, use
+        the ``Unicode`` column type instead, described in :ref:`types_toplevel`.  Note that
+        many DBAPIs have the ability to return Python Unicode objects in
+        result sets directly - SQLAlchemy will use these modes of operation
+        if possible and will also attempt to detect "Unicode returns" 
+        behavior by the DBAPI upon first connect by the 
+        :class:`.Engine`.  When this is detected, string values in 
+        result sets are passed through without further processing.
 
     :param creator: a callable which returns a DBAPI connection.
         This creation function will be passed to the underlying
@@ -167,17 +174,26 @@ def create_engine(*args, **kwargs):
     :param execution_options: Dictionary execution options which will
         be applied to all connections.  See
         :meth:`~sqlalchemy.engine.base.Connection.execution_options`
-        
+
+    :param implicit_returning=True: When ``True``, a RETURNING-
+        compatible construct, if available, will be used to
+        fetch newly generated primary key values when a single row
+        INSERT statement is emitted with no existing returning() 
+        clause.  This applies to those backends which support RETURNING 
+        or a compatible construct, including Postgresql, Firebird, Oracle, 
+        Microsoft SQL Server.   Set this to ``False`` to disable
+        the automatic usage of RETURNING.
+
     :param label_length=None: optional integer value which limits
         the size of dynamically generated column labels to that many
         characters. If less than 6, labels are generated as
         "_(counter)". If ``None``, the value of
         ``dialect.max_identifier_length`` is used instead.
-    
+
     :param listeners: A list of one or more 
         :class:`~sqlalchemy.interfaces.PoolListener` objects which will 
         receive connection pool events.
-      
+
     :param logging_name:  String identifier which will be used within
         the "name" field of logging records generated within the
         "sqlalchemy.engine" logger. Defaults to a hexstring of the 
@@ -188,10 +204,13 @@ def create_engine(*args, **kwargs):
         opened above and beyond the pool_size setting, which defaults
         to five. this is only used with :class:`~sqlalchemy.pool.QueuePool`.
 
-    :param module=None: used by database implementations which
-        support multiple DBAPI modules, this is a reference to a DBAPI2
-        module to be used instead of the engine's default module. For
-        PostgreSQL, the default is psycopg2. For Oracle, it's cx_Oracle.
+    :param module=None: reference to a Python module object (the module itself, not
+        its string name).  Specifies an alternate DBAPI module to be used
+        by the engine's dialect.  Each sub-dialect references a specific DBAPI which
+        will be imported before first connect.  This parameter causes the
+        import to be bypassed, and the given module to be used instead.
+        Can be used for testing of DBAPIs as well as to inject "mock"
+        DBAPI implementations into the :class:`.Engine`.
 
     :param pool=None: an already-constructed instance of
         :class:`~sqlalchemy.pool.Pool`, such as a
@@ -199,7 +218,7 @@ def create_engine(*args, **kwargs):
         pool will be used directly as the underlying connection pool
         for the engine, bypassing whatever connection parameters are
         present in the URL argument. For information on constructing
-        connection pools manually, see `pooling`.
+        connection pools manually, see :ref:`pooling_toplevel`.
 
     :param poolclass=None: a :class:`~sqlalchemy.pool.Pool`
         subclass, which will be used to create a connection pool
@@ -215,13 +234,16 @@ def create_engine(*args, **kwargs):
 
     :param pool_size=5: the number of connections to keep open
         inside the connection pool. This used with :class:`~sqlalchemy.pool.QueuePool` as
-        well as :class:`~sqlalchemy.pool.SingletonThreadPool`.
+        well as :class:`~sqlalchemy.pool.SingletonThreadPool`.  With
+        :class:`~sqlalchemy.pool.QueuePool`, a ``pool_size`` setting
+        of 0 indicates no limit; to disable pooling, set ``poolclass`` to
+        :class:`~sqlalchemy.pool.NullPool` instead.
 
     :param pool_recycle=-1: this setting causes the pool to recycle
         connections after the given number of seconds has passed. It
         defaults to -1, or no timeout. For example, setting to 3600
         means connections will be recycled after one hour. Note that
-        MySQL in particular will ``disconnect automatically`` if no
+        MySQL in particular will disconnect automatically if no
         activity is detected on a connection for eight hours (although
         this is configurable with the MySQLDB connection itself and the
         server configuration as well).
@@ -230,10 +252,10 @@ def create_engine(*args, **kwargs):
         up on getting a connection from the pool. This is only used
         with :class:`~sqlalchemy.pool.QueuePool`.
 
-    :param strategy='plain': used to invoke alternate :class:`~sqlalchemy.engine.base.Engine.`
-        implementations. Currently available is the ``threadlocal``
+    :param strategy='plain': selects alternate engine implementations.
+        Currently available is the ``threadlocal``
         strategy, which is described in :ref:`threadlocal_strategy`.
-    
+
     """
 
     strategy = kwargs.pop('strategy', default_strategy)
@@ -265,14 +287,15 @@ def _coerce_config(configuration, prefix):
                    for key in configuration
                    if key.startswith(prefix))
     for option, type_ in (
-        ('convert_unicode', bool),
+        ('convert_unicode', util.bool_or_str('force')),
         ('pool_timeout', int),
-        ('echo', bool),
-        ('echo_pool', bool),
+        ('echo', util.bool_or_str('debug')),
+        ('echo_pool', util.bool_or_str('debug')),
         ('pool_recycle', int),
         ('pool_size', int),
         ('max_overflow', int),
         ('pool_threadlocal', bool),
+        ('use_native_unicode', bool),
     ):
         util.coerce_kw_type(options, option, type_)
     return options
