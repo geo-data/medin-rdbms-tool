@@ -15,7 +15,7 @@ MEDIN METADATA TOOL: TODO
   useful if the tool emitted a warning when such situations are
   encountered.
 
-- The first step in the validation process (checking against the ISO
-  TC 211 schema) is currently not working properly, meaning the
-  validation routine isn't useful at the moment. This is a libxml
-  specific issue that needs to be investigated.
+- The tool should not only check to see if the user database supports
+  the correct table and column names, but also that the columns are of
+  the expected data type. See the email from Kay Thorne (Wed, 26 Jan
+  2011 15:59:15).

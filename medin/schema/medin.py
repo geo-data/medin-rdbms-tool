@@ -503,7 +503,7 @@ class Session(Session):
         # Primary metadata record
         metadata_table = Table(
             'METADATA', metadata,
-            Column('METADATAID', Numeric(10), primary_key=True,
+            Column('METADATAID', String(20), primary_key=True,
                    doc='Local primary key used as foreign key in other tables'),
             Column('TITLE', String(500),
                    doc='Used to populate MEDIN Element 1 (Resource Title)'),
@@ -559,7 +559,7 @@ class Session(Session):
         # Implements many alternative titles for one primary metadata record
         alt_title_table = Table(
             'ALT_TITLE', metadata,
-            Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True,
+            Column('METADATAID', String(20), ForeignKey('METADATA.METADATAID'), primary_key=True,
                    doc='Foreign key linkage to Table METADATA'),
             Column('ALTTITLE', String(350), primary_key=True,
                    doc='Used to populate MEDIN Element 2 (Alternative Resource Title)'))
@@ -577,7 +577,7 @@ class Session(Session):
             'RESPARTY_RES', metadata,
             Column('RESPARTYID', Numeric(10), ForeignKey('RES_PARTY.RESPARTYID'), primary_key=True,
                    doc='Identifier of the person/organisation in the repository RES_PARTY table. Foreign key linkage to table RES_PARTY'),
-            Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True,
+            Column('METADATAID', String(20), ForeignKey('METADATA.METADATAID'), primary_key=True,
                    doc='Foreign key linking to METADATA table'),
             Column('ROLEID', Numeric(10),
                    doc='Populate using ISOCODEID in the Tool-managed table ISO_CODE where ThesaurusID = 8'))
@@ -608,7 +608,7 @@ class Session(Session):
         # Tool managed table ISO_CODE.
         a_c_resolve_table = Table(
             'A_C_RESOLVE', metadata,
-            Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True,
+            Column('METADATAID', String(20), ForeignKey('METADATA.METADATAID'), primary_key=True,
                    doc='Foreign key linking to METADATA table'),
             Column('ISOCODEID', Numeric(10), primary_key=True,
                    doc='Foreign key linking to Tool-managed table ISO_CODE where THESAURUSIS = 7'))
@@ -635,7 +635,7 @@ class Session(Session):
         # ISO restriction codes, not just 'otherRestrictions'.
         o_r_resolve_table = Table(
             'O_R_RESOLVE', metadata,
-            Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True,
+            Column('METADATAID', String(20), ForeignKey('METADATA.METADATAID'), primary_key=True,
                    doc='Foreign key from table METADATA'),
             Column('ACCESSUSEID', Numeric(10),
                    ForeignKey('ACCESS_USE.ACCESSUSEID'), primary_key=True,
@@ -649,7 +649,7 @@ class Session(Session):
         # ACCESS_USE linking via ACCESSUSEID.
         a_u_resolve_table = Table(
             'A_U_RESOLVE', metadata,
-            Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True,
+            Column('METADATAID', String(20), ForeignKey('METADATA.METADATAID'), primary_key=True,
                    doc='Foreign key from table METADATA'),
             Column('ACCESSUSEID', Numeric(10),
                    ForeignKey('ACCESS_USE.ACCESSUSEID'), primary_key=True,
@@ -659,7 +659,7 @@ class Session(Session):
         # vocabularies in tables Keyword, DataFormat and Extent
         ctrlvocab_res_table = Table(
             'CTRLVOCAB_RES', metadata,
-            Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True,
+            Column('METADATAID', String(20), ForeignKey('METADATA.METADATAID'), primary_key=True,
                    doc='Foreign key linkage to Table METADATA'),
             Column('TERMID', String(10), primary_key=True,
                    doc="""Linkage to keywords in several vocabularies.
@@ -690,7 +690,7 @@ Format) translated from codes to text using the thesaurus."""))
         # document.
         coupled_res_table = Table(
             'COUPLED_RES', metadata,
-            Column('METADATAID', Numeric(10), ForeignKey('METADATA.METADATAID'), primary_key=True,
+            Column('METADATAID', String(20), ForeignKey('METADATA.METADATAID'), primary_key=True,
                    doc='Foreign Key linkage to METADATA table'),
             Column('COUPLRES', String(200), primary_key=True,
                    doc='URI used to populate MEDIN Element 7 (Coupled Resource)'))
