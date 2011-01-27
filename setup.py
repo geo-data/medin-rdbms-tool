@@ -70,6 +70,7 @@ package_args = dict(
                             'data/terms.json',
                             'data/thesauri.json',
                             'data/VocabServerAPI_dl.wsdl',
+                            'data/ws_edmo.wsdl',
                             'data/MedinMetadataProfile_v1.7.xsl',
                             'data/ISOTS19139A1Constraints_v1.3.xsl',
                             'data/contacts.sqlite',
@@ -92,6 +93,7 @@ try:
                     'packages': ['sqlalchemy.dialects.sqlite',
                                  'sqlalchemy.dialects.oracle',
                                  'cx_Oracle',
+                                 'xml.etree.ElementTree',
                                  'medin.schema.medin'],
                     "dll_excludes": ["oci.dll"], # exclude oracle version specific dll (http://www.py2exe.org/index.cgi/ExcludingDlls)
                     "optimize": 2,

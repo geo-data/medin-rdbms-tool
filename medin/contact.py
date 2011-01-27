@@ -43,7 +43,7 @@ class Organisations(object):
         if wsdl is None:
             # from http://seadatanet.maris2.nl/ws/ws_edmo.asmx?wsdl
             wsdlname = join(dirname(__file__), 'data', 'ws_edmo.wsdl')
-            wsdl = 'file://%s' % abspath(wsdlname)
+            wsdl = 'file:///%s' % abspath(wsdlname)
 
         self.client = suds.client.Client(wsdl)
 

@@ -208,7 +208,7 @@ class NERCVocab(object):
         if wsdl is None:
             # from http://www.bodc.ac.uk/extlink/http%3A//vocab.ndg.nerc.ac.uk/1.1/VocabServerAPI_dl.wsdl
             wsdlname = join(dirname(__file__), 'data', 'VocabServerAPI_dl.wsdl')
-            wsdl = 'file://%s' % abspath(wsdlname)
+            wsdl = 'file:///%s' % abspath(wsdlname)
 
         self.client = suds.client.Client(wsdl)
 
