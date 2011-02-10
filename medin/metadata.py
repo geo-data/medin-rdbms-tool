@@ -194,6 +194,9 @@ class ResourceLocator(object):
     url = None
     name = None
 
+    def __nonzero__(self):
+        return bool(self.url or self.name)
+
 class UniqueId(object):
     """
     Element 6
@@ -584,12 +587,15 @@ class XMLBuilder(object):
         Not known how to present resource's name, or how to show >1 locator.
         """
         resource_locators = []
-        for rl in self.m.resource_locators:        
+        for rl in self.m.resource_locators:
             CI_OnlineResource = self.doc.newDocNode(self.ns['gmd'], 'CI_OnlineResource', None)
             linkage = CI_OnlineResource.newChild(None, 'linkage', None)
-            linkage.newChild(None, 'URL', escape(str(rl.url)))
+            if rl.url: url = escape(str(rl.url))
+            else: url = None
+            linkage.newChild(None, 'URL', url)
             if rl.name:
-                CI_OnlineResource.newChild(None, 'name', escape(str(rl.name)))
+                name = CI_OnlineResource.newChild(None, 'name', None)
+                name.newChild(self.ns['gco'], 'CharacterString', escape(str(rl.name)))
             resource_locators.append(CI_OnlineResource)
         return resource_locators
 
