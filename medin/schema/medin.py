@@ -364,6 +364,7 @@ class TemporalReference(metadata.TemporalReference):
     
     def __set_composite_values__(self, begin, end, publication, revision, creation):
         self.begin = parse_date(begin)
+        self.end = parse_date(end)
         self.publication = publication
         self.revision = revision
         self.creation = creation
@@ -815,7 +816,7 @@ Format) translated from codes to text using the thesaurus."""))
             'temporal_reference': composite(
                     TemporalReference,
                     metadata_table.c.TEMPEXBGN,
-                    select(["NULL"]),
+                    metadata_table.c.TEMPEXEND,
                     metadata_table.c.PUBDATE,
                     metadata_table.c.REVDATE,
                     metadata_table.c.CREATED),

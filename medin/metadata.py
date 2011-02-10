@@ -311,7 +311,7 @@ class TemporalReference(object):
         self.creation = creation
 
     def __nonzero__(self):
-        return bool(self.begin or self.publication or self.revision or self.creation)
+        return bool(self.begin or self.end or self.publication or self.revision or self.creation)
 
 class SpatialResolution(object):
     """
@@ -860,9 +860,20 @@ class XMLBuilder(object):
         if ref.end:
             TimePeriod.newChild(None, 'endPosition', escape(str(ref.end)))
         else:
-            # default to now
-            endPosition = TimePeriod.newChild(None, 'endPosition', None)
-            endPosition.setProp('indeterminatePosition', 'now')
+            end = None
+            position = 'unknown'
+            if ref.revision:
+                end = escape(str(ref.revision))
+                position = 'after'
+            elif ref.creation:
+                end = escape(str(ref.creation))
+                position = 'after'
+            elif ref.publication:
+                end = escape(str(ref.publication))
+                position = 'after'
+                
+            endPosition = TimePeriod.newChild(None, 'endPosition', end)
+            endPosition.setProp('indeterminatePosition', position)
 
         return temporalElement
         
