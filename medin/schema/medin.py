@@ -119,7 +119,7 @@ class Metadata(metadata.Metadata):
 
     @property
     def additional_info(self):
-        return "\n\n".join([str(c) for c in self.CITATIONS])
+        return "\n\n".join([str(c) for c in self.ADDITIONAL_INFO])
 
     @property
     def access_constraint_terms(self):
@@ -391,6 +391,7 @@ class AdditionalInformation(object):
     concatenates them when stringified.
     """
 
+    CITATIONID = None
     PUBYEAR = None
     PUBTYP = None
     PUBTITLE = None
@@ -511,7 +512,7 @@ class Session(Session):
                    doc='Used to populate MEDIN Element 3 (Resource Abstract)'),
             Column('RESTYP_ID', Numeric(10), nullable=False,
                    doc='Used to populate MEDIN Element 4 (Resource Type) using ISOCODEID in the Tool-managed table ISO_CODE which have a ThesaurusID = 12'),
-            Column('RESLOC', String(200),
+            Column('RESLOC', Numeric(10), ForeignKey('CITATION.CITATIONID'),
                    doc='Pointer into the ONLINERS field in the CITATION table used to populate MEDIN Element 5.1 (Resource Locator url) concatenate with PUBTITLE field in the CITATION table used to populate MEDIN Element 5.2 (Resource Locator Name).'),
             Column('IDENTIFIER', String(255),
                    doc='Used to populate MEDIN Element 6.1 (Unique Resource Identifier Code)'),
@@ -559,10 +560,12 @@ class Session(Session):
         # Implements many alternative titles for one primary metadata record
         alt_title_table = Table(
             'ALT_TITLE', metadata,
-            Column('METADATAID', String(20), ForeignKey('METADATA.METADATAID'), primary_key=True,
+            Column('ALTTITLEID', Numeric(10), primary_key=True,
+                   doc='Local primary key'),
+            Column('METADATAID', String(20), ForeignKey('METADATA.METADATAID'),
                    doc='Foreign key linkage to Table METADATA'),
-            Column('ALTTITLE', String(350), primary_key=True,
-                   doc='Used to populate MEDIN Element 2 (Alternative Resource Title)'))
+            Column('ALTTITLE', String(350),
+                   doc='Used to populate MEDIN Element 2 (Alternative Resource Title)')),
 
         # Linker between primary metadata record and the people
         # repository (Responsible_Party)
@@ -699,7 +702,7 @@ Format) translated from codes to text using the thesaurus."""))
         # is built by concatenation.
         citation_table = Table(
             'CITATION', metadata,
-            Column('CITATIONID', Numeric(10), ForeignKey('METADATA.RESLOC'), primary_key=True,
+            Column('CITATIONID', Numeric(10), primary_key=True,
                    doc='Local Primary Key'),
             Column('PUBYEAR', Date(),
                    doc='Date of publication'),
@@ -723,6 +726,14 @@ Format) translated from codes to text using the thesaurus."""))
             Column('PUBSUBTYP', String(30)),
             Column('CONTRACTCODE',String(100)),
             Column('URL_ACCESSED', Date()))
+
+        # List of citations used as additional information
+        a_is_resolve_table = Table(
+            'A_IS_RESOLVE', metadata,
+            Column('METADATAID', String(20), ForeignKey('METADATA.METADATAID'), primary_key=True,
+                   doc='Foreign Key linkage to METADATA table'),
+            Column('CITATIONID', Numeric(10), ForeignKey('CITATION.CITATIONID'), primary_key=True,
+                   doc='Foreign key linkage to CITATION table for population of MEDIN Element 19 (Additional Information Source)'))
             
         return metadata
 
@@ -744,6 +755,7 @@ Format) translated from codes to text using the thesaurus."""))
                 'name': citation_table.c.PUBTITLE
                 })
 
+        a_is_resolve_table = schema.tables['A_IS_RESOLVE']
         mapper(AdditionalInformation, citation_table)
 
         coupled_res_table = schema.tables['COUPLED_RES']
@@ -780,7 +792,7 @@ Format) translated from codes to text using the thesaurus."""))
             'alt_titles': relationship(AlternativeTitle, order_by=AlternativeTitle.ALTTITLE),
             'abstract': metadata_table.c.ABSTRACT,
             'RESTYP_ID': metadata_table.c.RESTYP_ID,
-            'resource_locators': relationship(ResourceLocator),
+            'resource_locators': relationship(ResourceLocator, uselist=True),
             'unique_id': composite(
                     UniqueId,
                     metadata_table.c.IDENTIFIER,
@@ -812,7 +824,7 @@ Format) translated from codes to text using the thesaurus."""))
                     SpatialResolution,
                     metadata_table.c.SPARES,
                     select(["NULL"])),
-            'CITATIONS': relationship(AdditionalInformation),
+            'ADDITIONAL_INFO': relationship(AdditionalInformation, secondary=a_is_resolve_table),
             'ACCESS_CONSTRAINTS': relationship(AccessConstraint, order_by=AccessConstraint.ISOCODEID),
             'other_access_constraints': relationship(AccessUse, secondary=o_r_resolve_table),
             'use_limitations': relationship(AccessUse, secondary=a_u_resolve_table),
