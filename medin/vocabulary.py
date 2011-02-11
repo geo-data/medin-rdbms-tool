@@ -170,6 +170,13 @@ class NERCTerm(Term):
         self.key = key
         self.abbrv = abbrv
 
+    # a method so it can be overridden
+    def getTerm(self):
+        """
+        Get the term
+        """
+        return self.term
+
 # Concrete NERC terms
 
 class ISOCountry(NERCTerm):
@@ -193,6 +200,13 @@ class IHBSeaArea(NERCTerm):
 class MEDINFormat(NERCTerm):
     __mapper_args__ = {'polymorphic_identity': 16}
 
+class NDGDataProvider(NERCTerm):
+    __mapper_args__ = {'polymorphic_identity': 18}
+
+    # override the term as the XML requires the code to be present as
+    # a keyword, not the term.
+    def getTerm(self):
+        return self.code
 
 class NERCVocab(object):
     """

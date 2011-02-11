@@ -46,7 +46,6 @@ class Metadata(object):
 
     # Element 11
     keywords = None
-    is_harvested = True         # is the metadata MEDIN OAI harvested?
 
     # Element 12
     bounding_box = None
@@ -673,15 +672,8 @@ class XMLBuilder(object):
 
         # add in the OAI Harvesting keyword if required
         nodes = []
-        if self.m.is_harvested:
-            descriptiveKeywords = self.doc.newDocNode(self.ns['gmd'], 'descriptiveKeywords', None)
-            MD_Keywords = descriptiveKeywords.newChild(None, 'MD_Keywords', None)
-            keyword = MD_Keywords.newChild(None, 'keyword', None)
-            CharacterString = keyword.newChild(self.ns['gco'], 'CharacterString', 'NDGO0001')
-            nodes.append(descriptiveKeywords)
-
         keywords = self.m.mappedKeywords()
-        if not keywords and not nodes:
+        if not keywords:
             return []
 
         # associate keywords with thesauri
@@ -700,7 +692,7 @@ class XMLBuilder(object):
             # add the thesaurus terms
             for term in terms:
                 keyword = MD_Keywords.newChild(None, 'keyword', None)
-                CharacterString = keyword.newChild(self.ns['gco'], 'CharacterString', escape(term.term))
+                CharacterString = keyword.newChild(self.ns['gco'], 'CharacterString', escape(term.getTerm()))
                 
             thesaurusName = MD_Keywords.newChild(None, 'thesaurusName', None)
             thesaurusName.addChild(self.thesaurusToXML(thesaurus))

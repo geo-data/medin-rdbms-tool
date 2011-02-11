@@ -102,7 +102,7 @@ class Metadata(metadata.Metadata):
     @property
     def keywords(self):
         categories = []
-        for thesaurus_id in (10, 11):
+        for thesaurus_id in (10, 11, 18):
             categories.extend(self._getTerms(thesaurus_id))
         return categories
     

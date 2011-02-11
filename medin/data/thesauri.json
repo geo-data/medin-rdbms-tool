@@ -48,8 +48,15 @@
    "http://vocab.ndg.nerc.ac.uk/list/M010/current", 
    "Terms describing what types of data formats exist in a data set so a human can identify if the data is likely to be of use and select a tool to interrogate that data.",
    false
+  ],
+  [
+   18,
+   "NDG Data Providers",
+   "http://vocab.ndg.nerc.ac.uk/list/N010/current",
+   "Groups of organisations who provide discovery metadata collections to NERC DataGrid that are held such that the collections may be searched separately.",
+   false
   ]
- ], 
+ ],
  "iso": [
   [
    1, 
@@ -75,7 +82,8 @@
    12, 
    "ISO scope codelist", 
    "Resource type vocabulary"
-  ], 
+ 
+ ], 
   [
    17, 
    "ISO date type codelist", 
