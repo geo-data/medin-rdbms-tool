@@ -94,7 +94,7 @@ try:
                                  'sqlalchemy.dialects.oracle',
                                  'cx_Oracle',
                                  'xml.etree.ElementTree',
-                                 'medin.schema.medin'],
+                                 'medin.schema.medin-235'],
                     "dll_excludes": ["oci.dll"], # exclude oracle version specific dll (http://www.py2exe.org/index.cgi/ExcludingDlls)
                     "optimize": 2,
                     'skip_archive': True
