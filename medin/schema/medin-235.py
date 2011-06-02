@@ -513,8 +513,6 @@ class Session(Session):
                    doc='Used to populate MEDIN Element 3 (Resource Abstract)'),
             Column('RESTYP_ID', Numeric(10), nullable=False,
                    doc='Used to populate MEDIN Element 4 (Resource Type) using ISOCODEID in the Tool-managed table ISO_CODE which have a ThesaurusID = 12'),
-            Column('RESLOC', Numeric(10), ForeignKey('CITATION.CITATIONID'),
-                   doc='Pointer into the ONLINERS field in the CITATION table used to populate MEDIN Element 5.1 (Resource Locator url) concatenate with PUBTITLE field in the CITATION table used to populate MEDIN Element 5.2 (Resource Locator Name).'),
             Column('IDENTIFIER', String(255),
                    doc='Used to populate MEDIN Element 6.1 (Unique Resource Identifier Code)'),
             Column('CODESPACE', String(255),
@@ -735,6 +733,14 @@ Format) translated from codes to text using the thesaurus."""))
                    doc='Foreign Key linkage to METADATA table'),
             Column('CITATIONID', Numeric(10), ForeignKey('CITATION.CITATIONID'), primary_key=True,
                    doc='Foreign key linkage to CITATION table for population of MEDIN Element 19 (Additional Information Source)'))
+
+        # List of citations to be used as resource locators
+        resloc_res_table = Table(
+            'RESLOC_RES', metadata,
+            Column('METADATAID', String(20), ForeignKey('METADATA.METADATAID'), primary_key=True,
+                   doc='Foreign Key linkage to METADATA table'),
+            Column('CITATIONID', Numeric(10), ForeignKey('CITATION.CITATIONID'), primary_key=True,
+                   doc='Foreign key linkage to CITATION table for population of MEDIN Element 5 (Resource Locator)'))
             
         return metadata
 
@@ -753,8 +759,9 @@ Format) translated from codes to text using the thesaurus."""))
         citation_table = schema.tables['CITATION']
         mapper(ResourceLocator, citation_table, properties={
                 'url': citation_table.c.ONLINERES,
-                'name': citation_table.c.PUBTITLE
+                'name': citation_table.c.ONLINERESNAM
                 })
+        resloc_res_table = schema.tables['RESLOC_RES']
 
         a_is_resolve_table = schema.tables['A_IS_RESOLVE']
         mapper(AdditionalInformation, citation_table)
@@ -793,7 +800,7 @@ Format) translated from codes to text using the thesaurus."""))
             'alt_titles': relationship(AlternativeTitle, order_by=AlternativeTitle.ALTTITLE),
             'abstract': metadata_table.c.ABSTRACT,
             'RESTYP_ID': metadata_table.c.RESTYP_ID,
-            'resource_locators': relationship(ResourceLocator, uselist=True),
+            'resource_locators': relationship(ResourceLocator, secondary=resloc_res_table),
             'unique_id': composite(
                     UniqueId,
                     metadata_table.c.IDENTIFIER,
