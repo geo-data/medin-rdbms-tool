@@ -859,19 +859,19 @@ class XMLBuilder(object):
             TimePeriod.newChild(None, 'endPosition', escape(str(ref.end)))
         else:
             end = None
-            position = 'unknown'
             if ref.revision:
-                end = escape(str(ref.revision))
-                position = 'after'
+                end = ref.revision
             elif ref.creation:
-                end = escape(str(ref.creation))
-                position = 'after'
+                end = ref.creation
             elif ref.publication:
-                end = escape(str(ref.publication))
-                position = 'after'
+                end = ref.publication
+            else:
+                # default to the system time
+                from datetime import date
+                end = date.today()
                 
-            endPosition = TimePeriod.newChild(None, 'endPosition', end)
-            endPosition.setProp('indeterminatePosition', position)
+            endPosition = TimePeriod.newChild(None, 'endPosition', escape(str(end)))
+            endPosition.setProp('indeterminatePosition', 'after')
 
         return temporalElement
         
