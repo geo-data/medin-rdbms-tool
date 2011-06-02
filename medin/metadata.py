@@ -1113,11 +1113,18 @@ class XMLBuilder(object):
         Element 22.3 to XML
         """
         contacts = []
-        for party in self.m.responsible_parties:
-            if not party.role or party.role.term != 'distributor':
-                # we only want the distributor
-                continue
 
+        # get the distributor(s)
+        parties = [party for party in self.m.responsible_parties if party.role and party.role.term == 'distributor']
+        if not parties:
+            # if there aren't any distributors, use the custodian instead
+            parties = []
+            for party in (party for party in self.m.responsible_parties if party.role and party.role.term == 'custodian'):
+                party.role.term = 'distributor' # the custodian needs to be a distributor in this instance
+                parties.append(party)
+
+        # convert the parties to XML
+        for party in parties:
             distributor = self.doc.newDocNode(self.ns['gmd'], 'distributor', None)
             MD_Distributor = distributor.newChild(None, 'MD_Distributor', None)
             distributorContact = MD_Distributor.newChild(None, 'distributorContact', None)
