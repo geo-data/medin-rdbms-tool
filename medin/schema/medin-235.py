@@ -219,6 +219,9 @@ class UniqueId(metadata.UniqueId):
         self.id = id
         self.codespace = codespace
 
+class ParentId(UniqueId):
+    pass
+
 class CoupledResource(object):
     """
     Element 7
@@ -498,7 +501,7 @@ class Session(Session):
         """
         Return a sqlalchemy.MetaData object representing the database schema
         """
-        from sqlalchemy import Table, Column, Numeric, String, Date, DateTime, MetaData, ForeignKey
+        from sqlalchemy import Table, Column, Numeric, String, Date, DateTime, MetaData, ForeignKey, UniqueConstraint
 
         metadata = MetaData() # N.B. not a medin.metadata.Metadata object!!
 
@@ -742,6 +745,15 @@ Format) translated from codes to text using the thesaurus."""))
             Column('CITATIONID', Numeric(10), ForeignKey('CITATION.CITATIONID'), primary_key=True,
                    doc='Foreign key linkage to CITATION table for population of MEDIN Element 5 (Resource Locator)'))
             
+        # List of citations to be used as resource locators
+        parent_id_table = Table(
+            'PARENT_ID', metadata,
+            Column('METADATAID', String(20), ForeignKey('METADATA.METADATAID'), primary_key=True,
+                   doc='Foreign Key linkage to METADATA table'),
+            Column('PARENTID', String(20), ForeignKey('METADATA.METADATAID'),
+                   doc='Foreign Key linkage to METADATA table for populating MEDIN Element 30 (Parent Identifier)'),
+            UniqueConstraint('METADATAID', 'PARENTID'))
+
         return metadata
 
     def setMapping(self):
@@ -792,8 +804,14 @@ Format) translated from codes to text using the thesaurus."""))
             'position': res_party_table.c.POSITIONTITLE,
             'CONTACTID': res_party_table.c.CONTACTID
             })
+
+        parent_id_table = schema.tables['PARENT_ID']
         
         metadata_table = schema.tables['METADATA']
+        mapper(ParentId, metadata_table, properties={
+                'id': metadata_table.c.IDENTIFIER,
+                'codespace': metadata_table.c.CODESPACE
+                })
         mapper(Metadata, metadata_table, properties={
             'METADATAID': metadata_table.c.METADATAID,
             'title': metadata_table.c.TITLE,
@@ -805,6 +823,11 @@ Format) translated from codes to text using the thesaurus."""))
                     UniqueId,
                     metadata_table.c.IDENTIFIER,
                     metadata_table.c.CODESPACE),
+            'parent_id': relationship(ParentId,
+                                      secondary=parent_id_table,
+                                      primaryjoin=(metadata_table.c.METADATAID == parent_id_table.c.METADATAID),
+                                      secondaryjoin=(metadata_table.c.METADATAID == parent_id_table.c.PARENTID),
+                                      uselist=False),
             'coupled_resources': relationship(CoupledResource),
             'terms': relationship(Term),
             'SDSTYP_ID': metadata_table.c.SDSTYP_ID,

@@ -64,10 +64,10 @@ class Metadata(object):
 
     # Element 17
     lineage = None
-    
+
     # Element 18
     spatial_resolutions = None
-    
+
     # Element 19
     additional_info = None
 
@@ -90,7 +90,7 @@ class Metadata(object):
     # Element 25
     inspire_conformity = None
 
-    # Element 26 
+    # Element 26
     date = None
 
     # Element 27
@@ -132,10 +132,7 @@ class Metadata(object):
         identifer (Element 6).
         """
 
-        from uuid import uuid5, NAMESPACE_URL
-
-        name = str(self.unique_id)
-        return uuid5(NAMESPACE_URL, name).hex
+        return self.unique_id.asIdentifier()
 
     def mappedKeywords(self):
         """
@@ -177,7 +174,7 @@ class Metadata(object):
             keywords = iter(self.keywords)
         except TypeError:
             keywords = []
-            
+
         mapped = set(existing)
         for term in keywords:
             for match in term.getMatches():
@@ -185,7 +182,7 @@ class Metadata(object):
                     mapped.add(match)
 
         return mapped
-            
+
 class ResourceLocator(object):
     """
     Element 5
@@ -205,7 +202,7 @@ class UniqueId(object):
     """
     id = None
     codespace = None
-    
+
     def __init__(self, id, codespace=None):
         self.id = id
         self.codespace = codespace
@@ -215,6 +212,18 @@ class UniqueId(object):
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def asIdentifier(self):
+        """
+        Generate an unique identifier for this id
+
+        This identifier is derived from the UUID 5 algorithm (an UUID
+        derived from an URL).
+        """
+        from uuid import uuid5, NAMESPACE_URL
+
+        name = str(self)
+        return uuid5(NAMESPACE_URL, name).hex
 
     def __repr__(self):
         return "<%s('%s')>" % (self.__class__.__name__, str(self))
@@ -399,7 +408,7 @@ class XMLBuilder(object):
         self.root.addChild(self.identificationInfo())
         self.root.addChild(self.distributionInfo())
         self.root.addChild(self.dataQualityInfo())
-        
+
         return self.doc
 
     def fileIdentifier(self):
@@ -529,8 +538,8 @@ class XMLBuilder(object):
             EX_Extent.addChild(node)
 
         node = self.temporalExtent()
-        if node: EX_Extent.addChild(node) 
-            
+        if node: EX_Extent.addChild(node)
+
         node = self.verticalExtent()
         if node: EX_Extent.addChild(node)
 
@@ -610,7 +619,7 @@ class XMLBuilder(object):
         if unique_id.codespace:
             codeSpace = RS_Identifier.newChild(None, 'codeSpace', None)
             characterString = codeSpace.newChild(self.ns['gco'], 'CharacterString', escape(str(unique_id.codespace)))
-            
+
         return identifier
 
     def coupledResources(self):
@@ -688,18 +697,18 @@ class XMLBuilder(object):
         for thesaurus, terms in thesauri.items():
             descriptiveKeywords = self.doc.newDocNode(self.ns['gmd'], 'descriptiveKeywords', None)
             MD_Keywords = descriptiveKeywords.newChild(None, 'MD_Keywords', None)
-            
+
             # add the thesaurus terms
             for term in terms:
                 keyword = MD_Keywords.newChild(None, 'keyword', None)
                 CharacterString = keyword.newChild(self.ns['gco'], 'CharacterString', escape(term.getTerm()))
-                
+
             thesaurusName = MD_Keywords.newChild(None, 'thesaurusName', None)
             thesaurusName.addChild(self.thesaurusToXML(thesaurus))
             nodes.append(descriptiveKeywords)
 
         return nodes
-            
+
     def boundingBox(self):
         """
         Element 12 to XML
@@ -726,7 +735,7 @@ class XMLBuilder(object):
         Convert a date or datetime object to XML
         """
         from datetime import datetime
-        
+
         sdate = date.isoformat()
         if isinstance(date, datetime):
             ele_name = 'DateTime'
@@ -749,7 +758,7 @@ class XMLBuilder(object):
         CI_DateTypeCode.setProp('codeListValue', code)
 
         return date_node
-    
+
     def thesaurusToXML(self, thesaurus):
         """
         Convert a thesaurus instance to an XML Citation node
@@ -787,7 +796,7 @@ class XMLBuilder(object):
             code = MD_Identifier.newChild(None, 'code', None)
             CharacterString = code.newChild(self.ns['gco'], 'CharacterString', escape(str(extent.term)))
             nodes.append(geographicElement)
-            
+
         return nodes
 
     def verticalExtent(self):
@@ -813,7 +822,7 @@ class XMLBuilder(object):
             self.ns['xlink'], 'href', escape(str(vextent.crs)))
 
         return verticalElement
-        
+
     def spatialReferenceSystem(self):
         """
         Element 15 to XML
@@ -861,12 +870,12 @@ class XMLBuilder(object):
             # default to the system time
             from datetime import date
             end = date.today()
-                
+
             endPosition = TimePeriod.newChild(None, 'endPosition', escape(str(end)))
             endPosition.setProp('indeterminatePosition', 'after')
 
         return temporalElement
-        
+
     def temporalReferenceDates(self):
         """
         Element 16.[234] to XML
@@ -904,7 +913,7 @@ class XMLBuilder(object):
         """
         if not self.m.spatial_resolutions:
             return None
-        
+
         spatialResolution = self.doc.newDocNode(
             self.ns['gmd'], 'spatialResolution', None)
         MD_Resolution = spatialResolution.newChild(None, 'MD_Resolution', None)
@@ -937,7 +946,7 @@ class XMLBuilder(object):
         info = self.m.additional_info
         if not info:
             return None
-        
+
         supplementalInformation = self.doc.newDocNode(self.ns['gmd'], 'supplementalInformation', None)
         supplementalInformation.newChild(self.ns['gco'], 'CharacterString', escape(str(info)))
         return supplementalInformation
@@ -959,7 +968,7 @@ class XMLBuilder(object):
             MD_Constraints.addChild(node)
 
         return resourceConstraints
-    
+
     def limitationsOnPublicAccess(self):
         """
         Element 20 to XML
@@ -1087,19 +1096,19 @@ class XMLBuilder(object):
         """
         Element 22.[12] to XML
         """
-        
+
         contacts = []
         for party in self.m.responsible_parties:
             if not party.role or party.role.term in ('pointOfContact', 'distributor'):
                 # we don't want the metadata point of contact or the originator
                 continue
-            
+
             pointOfContact = self.doc.newDocNode(self.ns['gmd'], 'pointOfContact', None)
             pointOfContact.addChild(self.responsiblePartyToXML(party))
             contacts.append(pointOfContact)
 
         return contacts
-    
+
     def distributors(self):
         """
         Element 22.3 to XML
@@ -1134,13 +1143,13 @@ class XMLBuilder(object):
             if not party.role or party.role.term != 'pointOfContact':
                 # we only want the metadata point of contact
                 continue
-            
+
             contact = self.doc.newDocNode(self.ns['gmd'], 'contact', None)
             contact.addChild(self.responsiblePartyToXML(party))
             contacts.append(contact)
 
-        return contacts    
-    
+        return contacts
+
     def dataFormats(self):
         """
         Element 23 to XML
@@ -1205,8 +1214,7 @@ class XMLBuilder(object):
         languageCode.setProp("codeListValue", escape(str(language.code)))
 
         return node
-        
-    
+
     def language(self):
         """
         Element 29 to XML
@@ -1222,6 +1230,6 @@ class XMLBuilder(object):
             return None
 
         parentIdentifier = self.doc.newDocNode(self.ns['gmd'], 'parentIdentifier', None)
-        characterString = parentIdentifier.newChild(self.ns['gco'], 'CharacterString', escape(str(parent_id)))
-            
+        characterString = parentIdentifier.newChild(self.ns['gco'], 'CharacterString', escape(parent_id.asIdentifier()))
+
         return parentIdentifier
