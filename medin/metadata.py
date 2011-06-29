@@ -858,17 +858,9 @@ class XMLBuilder(object):
         if ref.end:
             TimePeriod.newChild(None, 'endPosition', escape(str(ref.end)))
         else:
-            end = None
-            if ref.revision:
-                end = ref.revision
-            elif ref.creation:
-                end = ref.creation
-            elif ref.publication:
-                end = ref.publication
-            else:
-                # default to the system time
-                from datetime import date
-                end = date.today()
+            # default to the system time
+            from datetime import date
+            end = date.today()
                 
             endPosition = TimePeriod.newChild(None, 'endPosition', escape(str(end)))
             endPosition.setProp('indeterminatePosition', 'after')
