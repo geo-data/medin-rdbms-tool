@@ -189,6 +189,8 @@ class ResourceLocator(object):
     """
     url = None
     name = None
+    description = None
+    function = None
 
     def __nonzero__(self):
         return bool(self.url or self.name)
@@ -604,6 +606,19 @@ class XMLBuilder(object):
             if rl.name:
                 name = CI_OnlineResource.newChild(None, 'name', None)
                 name.newChild(self.ns['gco'], 'CharacterString', escape(str(rl.name)))
+
+            if rl.description:
+                description = CI_OnlineResource.newChild(None, 'description', None)
+                description.newChild(self.ns['gco'], 'CharacterString', escape(str(rl.description)))
+
+            if rl.function:
+                value = escape(str(rl.function))
+                function = CI_OnlineResource.newChild(None, 'function', None)
+                CI_OnLineFunctionCode = function.newChild(None, 'CI_OnLineFunctionCode', value)
+                CI_OnLineFunctionCode.setProp('codeList',
+                                              'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#CI_OnLineFunctionCode')
+                CI_OnLineFunctionCode.setProp('codeListValue', value)
+
             resource_locators.append(CI_OnlineResource)
         return resource_locators
 

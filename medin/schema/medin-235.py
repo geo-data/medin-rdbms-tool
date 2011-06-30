@@ -709,8 +709,7 @@ Format) translated from codes to text using the thesaurus."""))
             Column('PUBYEAR', Date(),
                    doc='Date of publication'),
             Column('PUBTYP', String(30)),
-            Column('PUBTITLE', String(1000),
-                   doc='Used to populate MEDIN Element 5.2.'),
+            Column('PUBTITLE', String(1000)),
             Column('VOLUME', Numeric(10)),
             Column('ISSUE', String(45)),
             Column('PAGES', String(10)),
@@ -719,9 +718,13 @@ Format) translated from codes to text using the thesaurus."""))
             Column('PUBPLACE', String(200)),
             Column('ORGREP', String(255)),
             Column('ONLINERES', String(500),
-                   doc='ONLINERES used to populate MEDIN Element 5.1.'),
+                   doc='URL used to populate MEDIN Element 5.1'),
             Column('ONLINERESNAM', String(500),
-                   doc='Name of online resource'),
+                   doc='Name of online resource used to populate MEDIN Element 5.2'),
+            Column('ONLINERESFUNC', String(20),
+                   doc='Description of online resource used to populate MEDIN Element 5.3'),
+            Column('ONLINERESDESC', String(200),
+                   doc='Description of online resource used to populate MEDIN Element 5'),
             Column('EDITION', String(25)),
             Column('EDITIONDATE', Date()),
             Column('PUBLISHER', String(255)),
@@ -771,7 +774,9 @@ Format) translated from codes to text using the thesaurus."""))
         citation_table = schema.tables['CITATION']
         mapper(ResourceLocator, citation_table, properties={
                 'url': citation_table.c.ONLINERES,
-                'name': citation_table.c.ONLINERESNAM
+                'name': citation_table.c.ONLINERESNAM,
+                'description': citation_table.c.ONLINERESDESC,
+                'function': citation_table.c.ONLINERESFUNC
                 })
         resloc_res_table = schema.tables['RESLOC_RES']
 
