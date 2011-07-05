@@ -716,7 +716,13 @@ class XMLBuilder(object):
             # add the thesaurus terms
             for term in terms:
                 keyword = MD_Keywords.newChild(None, 'keyword', None)
-                CharacterString = keyword.newChild(self.ns['gco'], 'CharacterString', escape(term.getTerm()))
+                try:
+                    url = term.key
+                except AttributeError:
+                    CharacterString = keyword.newChild(self.ns['gco'], 'CharacterString', escape(term.term))
+                else:
+                    Anchor = keyword.newChild(self.ns['gmx'], 'Anchor', escape(term.term))
+                    Anchor.setNsProp(self.ns['xlink'], 'href', escape(str(url)))
 
             thesaurusName = MD_Keywords.newChild(None, 'thesaurusName', None)
             thesaurusName.addChild(self.thesaurusToXML(thesaurus))
