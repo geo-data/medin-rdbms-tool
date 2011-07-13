@@ -1,4 +1,4 @@
-__version__ = '0.11'
+__version__ = '0.12'
 
 # ensure we are using UTF-8. Catching this here will save headaches
 # later!
