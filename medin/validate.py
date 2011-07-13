@@ -43,7 +43,7 @@ class Validator(object):
     def __init__(self):
         # set up the W3C schema parser
         self.error_handler = ErrorHandler()
-        filepath = os.path.join(os.path.dirname(__file__), 'data', 'isotc211', 'gmd', 'gmd.xsd')
+        filepath = os.path.join(os.path.dirname(__file__), 'data', 'isotc211', 'gmx', 'gmx.xsd')
         ctxt_parser = libxml2.schemaNewParserCtxt(filepath)
         self.isotc211_schema = ctxt_parser.schemaParse()
 
