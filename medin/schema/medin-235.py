@@ -185,6 +185,20 @@ class Metadata(metadata.Metadata):
 
         return self._update_frequency
 
+    @property
+    def standard(self):
+        try:
+            return list(self._getTerms(19))[0].metadataStandardName
+        except IndexError:
+            return None
+
+    @property
+    def version(self):
+        try:
+            return list(self._getTerms(19))[0].metadataStandardVersion
+        except IndexError:
+            return None
+
 class AlternativeTitle(object):
     """
     This represents an alternative title (Element 2)

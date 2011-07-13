@@ -97,7 +97,7 @@ class Metadata(object):
     standard = 'MEDIN Discovery Metadata Standard'
 
     # Element 28
-    version = 'Version 2.3'
+    version = 'Version 2.3.5'
 
     # Element 29
     language = None
@@ -403,8 +403,10 @@ class XMLBuilder(object):
         for node in self.metadataPointsOfContact():
             self.root.addChild(node)
         self.root.addChild(self.dateStamp())
-        self.root.addChild(self.metadataStandardName())
-        self.root.addChild(self.metadataStandardVersion())
+        node = self.metadataStandardName()
+        if node: self.root.addChild(node)
+        node = self.metadataStandardVersion()
+        if node: self.root.addChild(node)
         node = self.spatialReferenceSystem()
         if node: self.root.addChild(node)
         self.root.addChild(self.identificationInfo())
@@ -1216,16 +1218,24 @@ class XMLBuilder(object):
         """
         Element 27 to XML
         """
+        standard = self.m.standard
+        if not standard:
+            return None
+
         metadataStandardName = self.doc.newDocNode(self.ns['gmd'], 'metadataStandardName', None)
-        characterString = metadataStandardName.newChild(self.ns['gco'], 'CharacterString', escape(str(self.m.standard)))
+        characterString = metadataStandardName.newChild(self.ns['gco'], 'CharacterString', escape(str(standard)))
         return metadataStandardName
 
     def metadataStandardVersion(self):
         """
         Element 28 to XML
         """
+        version = self.m.version
+        if not version:
+            return None
+
         metadataStandardVersion = self.doc.newDocNode(self.ns['gmd'], 'metadataStandardVersion', None)
-        characterString = metadataStandardVersion.newChild(self.ns['gco'], 'CharacterString', escape(str(self.m.version)))
+        characterString = metadataStandardVersion.newChild(self.ns['gco'], 'CharacterString', escape(str(version)))
         return metadataStandardVersion
 
     def languageToXML(self, language):

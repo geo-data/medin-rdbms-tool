@@ -55,7 +55,7 @@ class Term(Base):
 
     def __hash__(self):
         return hash(self.code + str(self.thesaurus_id))
-    
+
 class ISOThesaurus(Thesaurus):
     __mapper_args__ = {'polymorphic_identity': 'iso-code'} # used to populate thesauri.type
 
@@ -163,7 +163,7 @@ class NERCTerm(Term):
         This associates the new term with this one
         """
         self._left.extend(terms)
-    
+
     def __init__(self, key, term, abbrv, definition=None):
         code = key.rsplit('/', 1)[-1]
         super(NERCTerm, self).__init__(code, term, definition)
@@ -208,6 +208,42 @@ class NDGDataProvider(NERCTerm):
     def getTerm(self):
         return self.code
 
+class MetadataStandard(NERCTerm):
+    __mapper_args__ = {'polymorphic_identity': 19}
+
+    def _setProperties(self):
+        """
+        Set the object properties from the term
+
+        The term contains a json string with various attributes that
+        are used to set properties on the instance.
+        """
+        from json import loads
+
+        term = loads(self.definition)
+        for key, value in term.items():
+            setattr(self, '_'+key, value)
+
+    @property
+    def metadataStandardName(self):
+        try:
+            return self._metadataStandardName
+        except AttributeError:
+            pass
+
+        self._setProperties()
+        return self._metadataStandardName
+
+    @property
+    def metadataStandardVersion(self):
+        try:
+            return self._metadataStandardVersion
+        except AttributeError:
+            pass
+
+        self._setProperties()
+        return self._metadataStandardVersion
+
 class NERCVocab(object):
     """
     Vocabularies sourced from the NERC service
@@ -218,7 +254,7 @@ class NERCVocab(object):
     def __init__(self, wsdl=None):
         from os.path import dirname, join, abspath
         import suds
-        
+
         if wsdl is None:
             # from http://www.bodc.ac.uk/extlink/http%3A//vocab.ndg.nerc.ac.uk/1.1/VocabServerAPI_dl.wsdl
             wsdlname = join(dirname(__file__), 'data', 'VocabServerAPI_dl.wsdl')
@@ -251,7 +287,7 @@ class NERCVocab(object):
         vocabularies via a dictionary representing a one-to-many
         structure.
         """
-        
+
         maps = self.client.service.getMap(urls, 2, [], 'false')[0]
         matches = {}
         for entry in maps:
@@ -261,7 +297,7 @@ class NERCVocab(object):
             matches[key] = [e.entryKey for e in entry.narrowMatch]
 
         return matches
-        
+
 class Session(object):
 
     def __init__(self):
@@ -269,7 +305,7 @@ class Session(object):
 
         self.engine = get_engine('vocabularies.sqlite')
         Session = sessionmaker(bind=self.engine)
-        
+
         self.session = Session()
 
     def create(self):
@@ -282,7 +318,7 @@ class Session(object):
         from json import load
         from os.path import dirname, join
         from sqlalchemy import MetaData
-        
+
         # drop all existing tables
         current = MetaData(self.engine)
         current.reflect()
@@ -320,7 +356,7 @@ class Session(object):
             for code, word, definition in terms:
                 term = ISOTerm(id, code, word, definition)
                 thesaurus.terms.append(term)
-            
+
             thesauri.append(thesaurus)
 
         # add it all in!
@@ -342,7 +378,7 @@ class Session(object):
             log("%s has %d entries" % (thesaurus.name, len(thesaurus.terms)))
             if thesaurus.mapped:
                 urls.append(thesaurus.url)
-                
+
         # set the term mappings
         log("Setting term mappings")
         for key, matches in nerc_vocab.getMatches(urls).items():
@@ -391,7 +427,7 @@ class Session(object):
         """
         This uses the numerical code for lookup
         used in eg. METADATA.RESTYP_ID
-        
+
         NB: if the ISO terms' codes are going to change between
         different archive standards, then this is not the right
         place to do this lookup.
