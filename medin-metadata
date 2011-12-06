@@ -84,7 +84,7 @@ def main():
 
 Basic Usage:
   SCHEMA is the name of the database schema in use by the provider
-  database e.g. 'medin'.
+  database e.g. 'medin-235'.
 
   CONNSTRING is the connection parameter string for accessing the
   database. It should be in the following format:
@@ -103,7 +103,7 @@ Basic Usage:
   medin schema based on the BODC EDMED oracle database. It can be
   called as follows:
 
-  %prog medin example
+  %prog medin-235 example
 
 Validation:
   Passing 'warn' or 'strict' to the program using the --validation

@@ -512,12 +512,8 @@ class XMLBuilder(object):
         for node in self.distributors():
             MD_Distribution.addChild(node)
 
-        if self.m.resource_locators:
-            transferOptions = MD_Distribution.newChild(None, 'transferOptions', None)
-            MD_DigitalTransferOptions = transferOptions.newChild(None, 'MD_DigitalTransferOptions', None)
-            onLine = MD_DigitalTransferOptions.newChild(None, 'onLine', None)
-            for node in self.resourceLocators():
-                onLine.addChild(node)
+        for node in self.resourceLocators():
+            MD_Distribution.addChild(node)
 
         return distributionInfo
 
@@ -624,7 +620,10 @@ class XMLBuilder(object):
         """
         resource_locators = []
         for rl in self.m.resource_locators:
-            CI_OnlineResource = self.doc.newDocNode(self.ns['gmd'], 'CI_OnlineResource', None)
+            transferOptions = self.doc.newDocNode(self.ns['gmd'], 'transferOptions', None)
+            MD_DigitalTransferOptions = transferOptions.newChild(None, 'MD_DigitalTransferOptions', None)
+            onLine = MD_DigitalTransferOptions.newChild(None, 'onLine', None)
+            CI_OnlineResource = onLine.newChild(None, 'CI_OnlineResource', None)
             linkage = CI_OnlineResource.newChild(None, 'linkage', None)
             if rl.url: url = escape(str(rl.url))
             else: url = None
@@ -645,7 +644,7 @@ class XMLBuilder(object):
                                               'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#CI_OnLineFunctionCode')
                 CI_OnLineFunctionCode.setProp('codeListValue', value)
 
-            resource_locators.append(CI_OnlineResource)
+            resource_locators.append(transferOptions)
         return resource_locators
 
     def identifier(self):
