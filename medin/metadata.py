@@ -744,9 +744,9 @@ class XMLBuilder(object):
                 try:
                     url = term.key
                 except AttributeError:
-                    CharacterString = keyword.newChild(self.ns['gco'], 'CharacterString', escape(term.term))
+                    CharacterString = keyword.newChild(self.ns['gco'], 'CharacterString', escape(term.getTerm()))
                 else:
-                    Anchor = keyword.newChild(self.ns['gmx'], 'Anchor', escape(term.term))
+                    Anchor = keyword.newChild(self.ns['gmx'], 'Anchor', escape(term.getTerm()))
                     Anchor.setNsProp(self.ns['xlink'], 'href', escape(str(url)))
 
             thesaurusName = MD_Keywords.newChild(None, 'thesaurusName', None)
