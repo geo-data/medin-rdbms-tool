@@ -227,11 +227,6 @@ class MEDINFormat(NERCTerm):
 class NDGDataProvider(NERCTerm):
     __mapper_args__ = {'polymorphic_identity': 18}
 
-    # override the term as the XML requires the code to be present as
-    # a keyword, not the term.
-    def getTerm(self):
-        return self.code
-
 class MetadataStandard(NERCTerm):
     __mapper_args__ = {'polymorphic_identity': 19}
 
