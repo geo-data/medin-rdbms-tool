@@ -702,18 +702,18 @@
 <axsl:template match="/*/gmd:identificationInfo" priority="1000" mode="M29"><svrl:fired-rule xmlns:svrl="http://purl.oclc.org/dsdl/svrl" context="/*/gmd:identificationInfo"/>
 
 		<!--ASSERT -->
-<axsl:choose><axsl:when test="count(*/gmd:descriptiveKeywords) - count(*/gmd:descriptiveKeywords/*/gmd:keyword[*='NDGO0001']) &gt;= 1"/><axsl:otherwise><svrl:failed-assert xmlns:svrl="http://purl.oclc.org/dsdl/svrl" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:schold="http://www.ascc.net/xml/schematron" test="count(*/gmd:descriptiveKeywords) - count(*/gmd:descriptiveKeywords/*/gmd:keyword[*='NDGO0001']) &gt;= 1"><axsl:attribute name="location"><axsl:apply-templates select="." mode="schematron-get-full-path"/></axsl:attribute><svrl:text>
+<axsl:choose><axsl:when test="count(*/gmd:descriptiveKeywords) &gt;= 1"/><axsl:otherwise><svrl:failed-assert xmlns:svrl="http://purl.oclc.org/dsdl/svrl" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:schold="http://www.ascc.net/xml/schematron" test="count(*/gmd:descriptiveKeywords) &gt;= 1"><axsl:attribute name="location"><axsl:apply-templates select="." mode="schematron-get-full-path"/></axsl:attribute><svrl:text>
         Keywords are mandatory.
       </svrl:text></svrl:failed-assert></axsl:otherwise></axsl:choose>
 
 		<!--ASSERT -->
-<axsl:choose><axsl:when test="count(*/gmd:descriptiveKeywords/*/gmd:thesaurusName) =                    count(*/gmd:descriptiveKeywords) - count(*/gmd:descriptiveKeywords/*/gmd:keyword[*='NDGO0001'])"/><axsl:otherwise><svrl:failed-assert xmlns:svrl="http://purl.oclc.org/dsdl/svrl" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:schold="http://www.ascc.net/xml/schematron" test="count(*/gmd:descriptiveKeywords/*/gmd:thesaurusName) = count(*/gmd:descriptiveKeywords) - count(*/gmd:descriptiveKeywords/*/gmd:keyword[*='NDGO0001'])"><axsl:attribute name="location"><axsl:apply-templates select="." mode="schematron-get-full-path"/></axsl:attribute><svrl:text>
+<axsl:choose><axsl:when test="count(*/gmd:descriptiveKeywords/*/gmd:thesaurusName) &gt;= 1"/><axsl:otherwise><svrl:failed-assert xmlns:svrl="http://purl.oclc.org/dsdl/svrl" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:schold="http://www.ascc.net/xml/schematron" test="count(*/gmd:descriptiveKeywords/*/gmd:thesaurusName) &gt;= 1"><axsl:attribute name="location"><axsl:apply-templates select="." mode="schematron-get-full-path"/></axsl:attribute><svrl:text>
         Thesaurus Name is mandatory.
       </svrl:text></svrl:failed-assert></axsl:otherwise></axsl:choose>
 
 		<!--ASSERT -->
-<axsl:choose><axsl:when test="count(*/gmd:descriptiveKeywords/*/gmd:keyword[*='NDGO0001']) = 1"/><axsl:otherwise><svrl:failed-assert xmlns:svrl="http://purl.oclc.org/dsdl/svrl" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:schold="http://www.ascc.net/xml/schematron" test="count(*/gmd:descriptiveKeywords/*/gmd:keyword[*='NDGO0001']) = 1"><axsl:attribute name="location"><axsl:apply-templates select="." mode="schematron-get-full-path"/></axsl:attribute><svrl:text>
-        The NERC Data Grid OAI Harvesting keyword 'NGDO0001' must be provided.
+<axsl:choose><axsl:when test="count(*/gmd:descriptiveKeywords/*/gmd:keyword[starts-with(*/@xlink:href,'http://vocab.ndg.nerc.ac.uk/term/N010/')][substring-after(*/@xlink:href,'http://vocab.ndg.nerc.ac.uk/term/N010/')][contains(*/@xlink:href,'/NDGO0001')]) +                    count(*/gmd:descriptiveKeywords/*/gmd:keyword[*/@xlink:href='http://vocab.ndg.nerc.ac.uk/term/N010/0']) &gt;= 1"/><axsl:otherwise><svrl:failed-assert xmlns:svrl="http://purl.oclc.org/dsdl/svrl" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:schold="http://www.ascc.net/xml/schematron" test="count(*/gmd:descriptiveKeywords/*/gmd:keyword[starts-with(*/@xlink:href,'http://vocab.ndg.nerc.ac.uk/term/N010/')][substring-after(*/@xlink:href,'http://vocab.ndg.nerc.ac.uk/term/N010/')][contains(*/@xlink:href,'/NDGO0001')]) + count(*/gmd:descriptiveKeywords/*/gmd:keyword[*/@xlink:href='http://vocab.ndg.nerc.ac.uk/term/N010/0']) &gt;= 1"><axsl:attribute name="location"><axsl:apply-templates select="." mode="schematron-get-full-path"/></axsl:attribute><svrl:text>
+        The NERC Data Grid OAI harvesting keyword must be provided.
       </svrl:text></svrl:failed-assert></axsl:otherwise></axsl:choose><axsl:apply-templates select="@*|*|comment()|processing-instruction()" mode="M29"/></axsl:template><axsl:template match="text()" priority="-1" mode="M29"/><axsl:template match="@*|node()" priority="-2" mode="M29"><axsl:apply-templates select="@*|*|comment()|processing-instruction()" mode="M29"/></axsl:template>
 
 <!--PATTERN Element 12 - Geographical Bounding Box (M)-->
@@ -997,9 +997,8 @@
 <axsl:template match="/*" priority="1001" mode="M56"><svrl:fired-rule xmlns:svrl="http://purl.oclc.org/dsdl/svrl" context="/*"/>
 
 		<!--ASSERT -->
-<axsl:choose><axsl:when test="count(gmd:contact) = 1"/><axsl:otherwise><svrl:failed-assert xmlns:svrl="http://purl.oclc.org/dsdl/svrl" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:schold="http://www.ascc.net/xml/schematron" test="count(gmd:contact) = 1"><axsl:attribute name="location"><axsl:apply-templates select="." mode="schematron-get-full-path"/></axsl:attribute><svrl:text>
-        Metadata point of contact is a mandatory element. Only one must be provided 
-        while <axsl:text/><axsl:value-of select="count(gmd:contact)"/><axsl:text/> elements are provided.
+<axsl:choose><axsl:when test="count(gmd:contact) &gt;= 1"/><axsl:otherwise><svrl:failed-assert xmlns:svrl="http://purl.oclc.org/dsdl/svrl" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:schold="http://www.ascc.net/xml/schematron" test="count(gmd:contact) &gt;= 1"><axsl:attribute name="location"><axsl:apply-templates select="." mode="schematron-get-full-path"/></axsl:attribute><svrl:text>
+        Metadata point of contact is a mandatory element. One or more must be provided.
       </svrl:text></svrl:failed-assert></axsl:otherwise></axsl:choose><axsl:apply-templates select="@*|*|comment()|processing-instruction()" mode="M56"/></axsl:template>
 
 	<!--RULE -->
@@ -1007,7 +1006,7 @@
 
 		<!--ASSERT -->
 <axsl:choose><axsl:when test="count(*/gmd:pointOfContact) &gt;= 1"/><axsl:otherwise><svrl:failed-assert xmlns:svrl="http://purl.oclc.org/dsdl/svrl" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:schold="http://www.ascc.net/xml/schematron" test="count(*/gmd:pointOfContact) &gt;= 1"><axsl:attribute name="location"><axsl:apply-templates select="." mode="schematron-get-full-path"/></axsl:attribute><svrl:text>
-        Point of Contact is a mandatory element.
+        Point of Contact is a mandatory element. One or more must be provided.
       </svrl:text></svrl:failed-assert></axsl:otherwise></axsl:choose>
 
 		<!--ASSERT -->

@@ -77,7 +77,7 @@ class Validator(object):
         self.isots19139_xslt = libxslt.parseStylesheetDoc(doc)
 
         # set up the MEDIN Metadata Profile schematron
-        filepath = os.path.join(os.path.dirname(__file__), 'data', 'MedinMetadataProfile_v1.7.xsl')
+        filepath = os.path.join(os.path.dirname(__file__), 'data', 'MedinMetadataProfile_v1.8.xsl')
         doc = libxml2.parseFile(filepath)
         self.medin_xslt = libxslt.parseStylesheetDoc(doc)
 
