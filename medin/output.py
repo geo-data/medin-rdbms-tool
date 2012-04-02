@@ -34,6 +34,51 @@ from medin import MedinWarning
 class ValidationWarning(MedinWarning):
     pass
 
+class Filter(object):
+    pass
+
+class FilterMetadata(Filter):
+    def __call__(self, metadata):
+        from medin.metadata import XMLBuilder
+
+        # transform the metadata to XML
+        self.builder = XMLBuilder(metadata)
+        doc = self.builder.build()
+
+        if metadata.unique_id: unique_id = metadata.unique_id
+        else: unique_id = None
+
+        return doc, unique_id
+
+class FilterXMLDoc(Filter):
+    def __call__(self, metadata):
+        from metadata import UniqueId
+
+        xpath = metadata.xpathNewContext()
+        xpath.xpathRegisterNs('gmd', 'http://www.isotc211.org/2005/gmd')
+        xpath.xpathRegisterNs('gco', 'http://www.isotc211.org/2005/gco')
+        try:
+            node = xpath.xpathEval('//gmd:identificationInfo/gmd:MD_DataIdentification/*//gmd:identifier/gmd:RS_Identifier')[0]
+        except IndexError:
+            return metadata, None
+
+        xpath.setContextNode(node)
+        try:
+            node = xpath.xpathEval('./gmd:code/gco:CharacterString')[0]
+        except IndexError:
+            return metadata, None
+        code = node.content
+
+        try:
+            node = xpath.xpathEval('./gmd:codeSpace/gco:CharacterString')[0]
+        except IndexError:
+            codespace = None
+        else:
+            codespace = node.content
+
+        unique_id = UniqueId(code, codespace)
+        return metadata, unique_id
+
 class Output(object):
     """
     Abstract base class for outputting metadata as XML
@@ -45,7 +90,7 @@ class Output(object):
             from medin.validate import Validator
             self.validator = Validator()
 
-    def processMetadata(self, metadata):
+    def processMetadata(self, doc, unique_id):
         """
         Process an individual metadata instance
 
@@ -55,16 +100,11 @@ class Output(object):
         from cStringIO import StringIO
         import libxml2
         from medin import log
-        from medin.metadata import XMLBuilder
 
         warning = None          # contains any validation warning
 
-        # transform the metadata to XML
-        builder = XMLBuilder(metadata)
-        doc = builder.build()
-
-        if metadata.unique_id: unique_id = str(metadata.unique_id)
-        else: unique_id = 'no identifier present'
+        if unique_id is None:
+            unique_id = 'no identifier present'
 
         # try and validate the xml
         if self.validator:
@@ -95,18 +135,22 @@ class Output(object):
 
         return (f.getvalue().strip(), warning)
 
-    def _createFlush(self, metadata, xml):
+    def _createFlush(self, xml, doc, unique_id):
         """
         Return a function that outputs a metadata entry
         """
         raise NotImplementedError('This method must be overridden')
     
-    def __call__(self, iter_metadata):
+    def __call__(self, iter_metadata, filter_=None):
+        if filter_ is None:
+            filter_ = FilterMetadata()
+
         for metadata in iter_metadata:
-            xml, warning = self.processMetadata(metadata)
+            doc, unique_id = filter_(metadata)
+            xml, warning = self.processMetadata(doc, unique_id)
             if not xml:
                 continue
-            yield self._createFlush(metadata, xml), warning
+            yield self._createFlush(xml, doc, unique_id), warning
 
     def __enter__(self):
         return self
@@ -123,7 +167,7 @@ class FileOutput(Output):
         self.fh = file
         super(FileOutput, self).__init__(*args, **kwargs)
 
-    def _createFlush(self, metadata, xml):
+    def _createFlush(self, xml, doc, unique_id):
         def flush():
             self.fh.write(xml)
             self.fh.write("\n")
@@ -153,9 +197,12 @@ MEDIN XML Metadata created by MEDIN Metadata Generator version %s\n""" % (self.u
         self.fh.write("--%s--\n" % self.uid)
         return False
 
-    def _createFlush(self, metadata, xml):
+    def _createFlush(self, xml, doc, unique_id):
         def flush():
-            filename = metadata.unique_id.id + '.xml'
+            if unique_id:
+                filename = unique_id.id + '.xml'
+            else:
+                filename = self.uid + '.xml'
             self.fh.write("""--%s
 Content-Type: text/xml; charset=UTF-8;
 Content-Disposition: inline; filename="%s";
@@ -179,11 +226,11 @@ class DirOutput(Output):
             directory = curdir
         self.directory = abspath(directory)
 
-    def _createFlush(self, metadata, xml):
+    def _createFlush(self, xml, doc, unique_id):
         from os.path import join
 
         def flush():
-            filename = metadata.unique_id.id + '.xml'
+            filename = unique_id.id + '.xml'
             path = join(self.directory, filename)
             try:
                 with open(path, 'w') as fh:

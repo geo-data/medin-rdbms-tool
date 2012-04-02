@@ -128,7 +128,7 @@ try:
 except ImportError:
     
     package_args.update(dict(
-        scripts=['medin-metadata'],
+        scripts=['medin-metadata', 'extra/validate-xml.py'],
         data_files=[('bin', ['medin-metadata'])]))
 
 # run the setup

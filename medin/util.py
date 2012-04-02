@@ -74,7 +74,7 @@ def get_version(config_cmd):
     except ValueError:
         raise EnvironmentError('The version of %s could not be determined' % config_cmd)
 
-def check_environment():
+def check_environment(xml_only=False):
     """Check whether the system supports the program requirements"""
     import sys, os
     from warnings import warn
@@ -90,15 +90,16 @@ def check_environment():
     except ImportError:
         raise EnvironmentError('The libxslt python module needs to be installed. See http://xmlsoft.org/XSLT/python.html')
 
-    try:
-        import suds
-    except ImportError:
-        raise EnvironmentError('The suds python module needs to be installed. See http://pypi.python.org/pypi/suds')
+    if not xml_only:
+        try:
+            import suds
+        except ImportError:
+            raise EnvironmentError('The suds python module needs to be installed. See http://pypi.python.org/pypi/suds')
 
-    try:
-        import sqlalchemy
-    except ImportError:
-        raise EnvironmentError('The SQLAlchemy python module needs to be installed. See http://pypi.python.org/pypi/SQLAlchemy')
+        try:
+            import sqlalchemy
+        except ImportError:
+            raise EnvironmentError('The SQLAlchemy python module needs to be installed. See http://pypi.python.org/pypi/SQLAlchemy')
 
     # check we've got minimum python support
     if Version(*sys.version_info[:3]) < Version(2, 6, 0):
@@ -128,17 +129,18 @@ def check_environment():
             if version_cur < version_min:
                 raise EnvironmentError('Your version of libxslt is %s, it needs to be at least %s' % (version_cur, version_min))
 
-    # check we've got minimum sqlalchemy support
-    version_cur = Version.parse(sqlalchemy.__version__)
-    version_min = Version(0, 6, 6)
-    if version_cur < version_min:
-        raise EnvironmentError('Your version of SQLAlchemy is %s, it needs to be at least %s' % (version_cur, version_min))
+    if not xml_only:
+        # check we've got minimum sqlalchemy support
+        version_cur = Version.parse(sqlalchemy.__version__)
+        version_min = Version(0, 6, 6)
+        if version_cur < version_min:
+            raise EnvironmentError('Your version of SQLAlchemy is %s, it needs to be at least %s' % (version_cur, version_min))
 
-    # check we've got minimum suds support
-    version_cur = Version.parse(suds.__version__)
-    version_min = Version(0, 3, 9)
-    if version_cur < version_min:
-        raise EnvironmentError('Your version of suds is %s, it needs to be at least %s' % (version_cur, version_min))
+        # check we've got minimum suds support
+        version_cur = Version.parse(suds.__version__)
+        version_min = Version(0, 3, 9)
+        if version_cur < version_min:
+            raise EnvironmentError('Your version of suds is %s, it needs to be at least %s' % (version_cur, version_min))
 
 def get_engine(name):
     """

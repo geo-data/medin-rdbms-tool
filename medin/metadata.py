@@ -259,6 +259,9 @@ class UniqueId(object):
             return self.codespace + self.id
         return self.id
 
+    def __add__(self, other):
+        return str(self) + str(other)
+
     @classmethod
     def FromQualifiedId(cls, qualified_id):
         """

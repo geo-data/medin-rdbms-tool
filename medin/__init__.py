@@ -22,7 +22,7 @@
 # You can obtain a full copy of the RPL from
 # http://opensource.org/licenses/rpl1.5.txt or geodata@soton.ac.uk
 
-__version__ = '0.15'
+__version__ = '0.16'
 
 # ensure we are using UTF-8. Catching this here will save headaches
 # later!

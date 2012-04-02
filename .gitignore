@@ -1,3 +1,6 @@
 # ignore compiled python files
 *.pyc
 *.pyo
+MANIFEST
+build/
+dist/
