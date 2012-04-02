@@ -156,7 +156,9 @@ class Metadata(object):
         identifer (Element 6).
         """
 
-        return self.unique_id.asIdentifier()
+        if self.unique_id:
+            return self.unique_id.asIdentifier()
+        return None
 
     def mappedKeywords(self):
         """
@@ -421,7 +423,9 @@ class XMLBuilder(object):
         This should only be called once per instance!
         """
 
-        self.root.addChild(self.fileIdentifier())
+        fileIdentifier = self.fileIdentifier()
+        if fileIdentifier:
+            self.root.addChild(fileIdentifier)
         self.root.addChild(self.language())
         node = self.parentIdentifier()
         if node: self.root.addChild(node)
@@ -429,7 +433,9 @@ class XMLBuilder(object):
         if node: self.root.addChild(node)
         for node in self.metadataPointsOfContact():
             self.root.addChild(node)
-        self.root.addChild(self.dateStamp())
+        dateStamp = self.dateStamp()
+        if dateStamp:
+            self.root.addChild(dateStamp)
         node = self.metadataStandardName()
         if node: self.root.addChild(node)
         node = self.metadataStandardVersion()
@@ -447,6 +453,9 @@ class XMLBuilder(object):
         Create the unique metadata identifier
         """
         identifier = self.m.fileIdentifier()
+        if not identifier:
+            return None
+
         fileIdentifier = self.doc.newDocNode(self.ns['gmd'], 'fileIdentifier', None)
         fileIdentifier.newChild(self.ns['gco'], 'CharacterString', escape(str(identifier)))
 
@@ -461,13 +470,21 @@ class XMLBuilder(object):
 
         citation = MD_DataIdentification.newChild(None, 'citation', None)
         CI_Citation = citation.newChild(None, 'CI_Citation', None)
-        CI_Citation.addChild(self.title())
+        title = self.title()
+        if title:
+            CI_Citation.addChild(title)
         for node in self.alternativeTitles():
             CI_Citation.addChild(node)
         for node in self.temporalReferenceDates():
             CI_Citation.addChild(node)
-        CI_Citation.addChild(self.identifier())
-        MD_DataIdentification.addChild(self.abstract())
+
+        identifier = self.identifier()
+        if identifier:
+            CI_Citation.addChild(identifier)
+
+        abstract = self.abstract()
+        if abstract:
+            MD_DataIdentification.addChild(abstract)
 
         for node in self.pointsOfContact():
             MD_DataIdentification.addChild(node)
@@ -576,6 +593,9 @@ class XMLBuilder(object):
         """
         Element 1 to XML
         """
+        if not self.m.title:
+            return None
+
         title = self.doc.newDocNode(self.ns['gmd'], 'title', None)
         characterString = title.newChild(self.ns['gco'], 'CharacterString', escape(self.m.title))
         return title
@@ -595,6 +615,9 @@ class XMLBuilder(object):
         """
         Element 3 to XML
         """
+        if not self.m.abstract:
+            return None
+
         abstract = self.doc.newDocNode(self.ns['gmd'], 'abstract', None)
         characterString = abstract.newChild(self.ns['gco'], 'CharacterString', escape(str(self.m.abstract)))
         return abstract
@@ -655,6 +678,9 @@ class XMLBuilder(object):
         Element 6 to XML
         """
         unique_id = self.m.unique_id
+        if not unique_id:
+            return None
+
         identifier = self.doc.newDocNode(self.ns['gmd'], 'identifier', None)
         RS_Identifier = identifier.newChild(None, 'RS_Identifier', None)
         code = RS_Identifier.newChild(None, 'code', None)
@@ -763,6 +789,9 @@ class XMLBuilder(object):
         Element 12 to XML
         """
         bbox = self.m.bounding_box
+        if not bbox:
+            return None
+
         geographicElement = self.doc.newDocNode(self.ns['gmd'], 'geographicElement', None)
         EX_GeographicBoundingBox = geographicElement.newChild(None, 'EX_GeographicBoundingBox', None)
         westBoundLongitude = EX_GeographicBoundingBox.newChild(
@@ -783,6 +812,9 @@ class XMLBuilder(object):
         """
         Convert a date or datetime object to XML
         """
+        if not date:
+            return None
+
         from datetime import datetime
 
         sdate = date.isoformat()
@@ -1237,7 +1269,10 @@ class XMLBuilder(object):
         Element 26 to XML
         """
         dateStamp = self.doc.newDocNode(self.ns['gmd'], 'dateStamp', None)
-        dateStamp.addChild(self.dateToXML(self.m.date))
+        date = self.dateToXML(self.m.date)
+        if not date:
+            return None
+        dateStamp.addChild(date)
         return dateStamp
 
     def metadataStandardName(self):
