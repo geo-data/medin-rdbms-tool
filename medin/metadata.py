@@ -1222,7 +1222,7 @@ class XMLBuilder(object):
         address = self.doc.newDocNode(self.ns['gmd'], 'address', None)
         CI_Address = address.newChild(None, 'CI_Address', None)
         if party.address:
-            for point in party.address.splitlines():
+            for point in (p.strip() for p in party.address.splitlines()):
                 if not point:
                     continue
                 deliveryPoint = CI_Address.newChild(None, 'deliveryPoint', None)
