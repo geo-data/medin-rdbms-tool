@@ -317,48 +317,6 @@ class VerticalExtent(metadata.VerticalExtent):
         self.maximum = maximum
         self.crs = crs
 
-class Proxy:
-    """
-    Proxy class
-
-    This class wraps an object. It passes all unhandled attribute
-    calls to the underlying object. This enables the proxy to override
-    the underlying object's attributes. In practice this works like
-    runtime inheritance.
-    """
-    def __init__(self, obj):
-        self._obj = obj
-
-    def __getattr__(self, name):
-        return getattr(self._obj, name)
-
-class Year(Proxy):
-    """
-    Class representing a year
-    """
-    
-    def __init__(self, year):
-        super(Year, self).__init__(datetime.date(year, 1, 1))
-
-    def isoformat(self):
-        return '%d-00-00' % self.year
-        
-    def __str__(self):
-        return str(self.year)
-    
-class YearMonth(Proxy):
-    """
-    Class representing a year and a month
-    """
-    def __init__(self, year, month):
-        super(YearMonth, self).__init__(datetime.date(year, month, 1))
-    
-    def isoformat(self):
-        return '%d-%02d-00' % (self._obj.year, self._obj.month)
-    
-    def __str__(self):
-        return self.isoformat()
-
 def parse_date(date):
     """
     Parse a date string into a datetime object
@@ -386,10 +344,10 @@ def parse_date(date):
         return datetime.date(*[int(groups[k]) for k in ('year', 'month', 'day')])
     elif groups['month']:
         #  it is a YearMonth object
-        return YearMonth(*[int(groups[k]) for k in ('year', 'month')])
+        return metadata.YearMonth(*[int(groups[k]) for k in ('year', 'month')])
 
     # it's a Year object
-    return Year(int(groups['year']))    
+    return metadata.Year(int(groups['year']))    
     
 class TemporalReference(metadata.TemporalReference):
     """
@@ -414,6 +372,17 @@ class SpatialResolution(metadata.SpatialResolution):
     """
     Element 18
     """
+    _distance = None
+
+    @property
+    def distance(self): return self._distance
+
+    @distance.setter
+    def distance(self, value):
+        if value == 'inapplicable':
+            value = metadata.Nil('inapplicable')
+        self._distance = value
+
     # emulate array
     def __iter__(self):
         yield self

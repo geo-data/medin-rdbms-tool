@@ -138,7 +138,8 @@ class Metadata(object):
         self.topic_categories = []
         self.keywords = []
         self.spatial_resolutions = []
-        self.access_constraints = []
+        self.access_constraint_terms = []
+        self.other_access_constraints = []
         self.use_limitations = []
         self.responsible_parties = []
         self.data_formats = []
@@ -208,6 +209,60 @@ class Metadata(object):
                     mapped.add(match)
 
         return mapped
+
+class Proxy(object):
+    """
+    Proxy class
+
+    This class wraps an object. It passes all unhandled attribute
+    calls to the underlying object. This enables the proxy to override
+    the underlying object's attributes. In practice this works like
+    runtime inheritance.
+    """
+    def __init__(self, obj):
+        self._obj = obj
+
+    def __getattr__(self, name):
+        return getattr(self._obj, name)
+
+class Year(Proxy):
+    """
+    Class representing a year
+    """
+    
+    def __init__(self, year):
+        from datetime import date
+        super(Year, self).__init__(date(year, 1, 1))
+
+    def isoformat(self):
+        return '%d' % self.year
+        
+    def __str__(self):
+        return str(self.year)
+    
+class YearMonth(Proxy):
+    """
+    Class representing a year and a month
+    """
+    def __init__(self, year, month):
+        from datetime import date
+        super(YearMonth, self).__init__(date(year, month, 1))
+    
+    def isoformat(self):
+        return '%d-%02d' % (self._obj.year, self._obj.month)
+    
+    def __str__(self):
+        return self.isoformat()
+
+class Nil(object):
+    def __init__(self, reason):
+        self.reason = reason
+
+    def __repr__(self):
+        return '<Nil(%s)' % repr(self.reason)
+
+    def __str__(self):
+        return str(self.reason)
 
 class ResourceLocator(object):
     """
@@ -345,7 +400,7 @@ class TemporalReference(object):
     revision = None
     creation = None
 
-    def __init__(self, begin, end, publication, revision, creation):
+    def __init__(self, begin=None, end=None, publication=None, revision=None, creation=None):
         self.begin = begin
         self.end = end
         self.publication = publication
@@ -361,7 +416,7 @@ class SpatialResolution(object):
     """
     distance = None
     equivalent_scale = None
-    def __init__(self, distance, equivalent_scale):
+    def __init__(self, distance=None, equivalent_scale=None):
         self.distance = distance
         self.equivalent_scale = equivalent_scale
 
@@ -448,6 +503,30 @@ class XMLBuilder(object):
 
         return self.doc
 
+    def setNodeValue(self, node, value, type_=None, attrs={}):
+        """
+        Set the value of an XML node
+
+        If a type is specified the value is wrapped in the appropriate
+        type element. If the value is a `Nil` object the node is
+        attributed appropriately instead of assigning a value.
+        """
+        # check if it's a Nil value
+        if isinstance(value, Nil):
+            node.setNsProp(self.ns['gco'], 'nilReason', str(value))
+            return
+
+        # check if we need to wrap the value in a type elementn
+        if not type_:
+            node.setContent(str(value))
+            return
+
+        child = node.newChild(self.ns['gco'], type_, escape(str(value)))
+
+        # add any attributes to the type element
+        for attr, value in attrs.iteritems():
+            child.setProp(attr, value)
+
     def fileIdentifier(self):
         """
         Create the unique metadata identifier
@@ -527,7 +606,7 @@ class XMLBuilder(object):
         MD_Distribution = distributionInfo.newChild(None, 'MD_Distribution', None)
         MD_Distribution.addChild(self.doc.newDocComment("ISO 19115 Constraints require this element!"))
         distributionFormat = MD_Distribution.newChild(None, 'distributionFormat', None)
-        distributionFormat.setNsProp(self.ns['gco'], 'nilReason', 'inapplicable')
+        self.setNodeValue(distributionFormat, Nil('inapplicable'))
 
         for node in self.distributors():
             MD_Distribution.addChild(node)
@@ -597,7 +676,7 @@ class XMLBuilder(object):
             return None
 
         title = self.doc.newDocNode(self.ns['gmd'], 'title', None)
-        characterString = title.newChild(self.ns['gco'], 'CharacterString', escape(self.m.title))
+        self.setNodeValue(title, self.m.title, 'CharacterString')
         return title
 
     def alternativeTitles(self):
@@ -619,7 +698,7 @@ class XMLBuilder(object):
             return None
 
         abstract = self.doc.newDocNode(self.ns['gmd'], 'abstract', None)
-        characterString = abstract.newChild(self.ns['gco'], 'CharacterString', escape(str(self.m.abstract)))
+        self.setNodeValue(abstract, self.m.abstract, 'CharacterString')
         return abstract
 
     def resourceType(self):
@@ -773,13 +852,17 @@ class XMLBuilder(object):
                 try:
                     url = term.key
                 except AttributeError:
+                    url = None
+
+                if not url:
                     CharacterString = keyword.newChild(self.ns['gco'], 'CharacterString', escape(term.getTerm()))
                 else:
                     Anchor = keyword.newChild(self.ns['gmx'], 'Anchor', escape(term.getTerm()))
                     Anchor.setNsProp(self.ns['xlink'], 'href', escape(str(url)))
 
-            thesaurusName = MD_Keywords.newChild(None, 'thesaurusName', None)
-            thesaurusName.addChild(self.thesaurusToXML(thesaurus))
+            if term.thesaurus:
+                thesaurusName = MD_Keywords.newChild(None, 'thesaurusName', None)
+                thesaurusName.addChild(self.thesaurusToXML(thesaurus))
             nodes.append(descriptiveKeywords)
 
         return nodes
@@ -802,10 +885,10 @@ class XMLBuilder(object):
             None, 'southBoundLatitude', None)
         northBoundLatitude = EX_GeographicBoundingBox.newChild(
             None, 'northBoundLatitude', None)
-        westBoundLongitude.newChild(self.ns['gco'], 'Decimal', escape(str(bbox.minx)))
-        eastBoundLongitude.newChild(self.ns['gco'], 'Decimal', escape(str(bbox.maxx)))
-        southBoundLatitude.newChild(self.ns['gco'], 'Decimal', escape(str(bbox.miny)))
-        northBoundLatitude.newChild(self.ns['gco'], 'Decimal', escape(str(bbox.maxy)))
+        self.setNodeValue(westBoundLongitude, bbox.minx, 'Decimal')
+        self.setNodeValue(eastBoundLongitude, bbox.maxx, 'Decimal')
+        self.setNodeValue(southBoundLatitude, bbox.miny, 'Decimal')
+        self.setNodeValue(northBoundLatitude, bbox.maxy, 'Decimal')
         return geographicElement
 
     def dateToXML(self, date):
@@ -832,7 +915,10 @@ class XMLBuilder(object):
         date_node = self.doc.newDocNode(self.ns['gmd'], 'date', None)
         CI_Date = date_node.newChild(None, 'CI_Date', None)
         date_node2 = CI_Date.newChild(None, 'date', None)
-        date_node2.addChild(self.dateToXML(date))
+        if not isinstance(date, Nil):
+            date_node2.addChild(self.dateToXML(date))
+        else:
+            self.setNodeValue(date_node2, date)
         dateType = CI_Date.newChild(None, 'dateType', None)
         CI_DateTypeCode = dateType.newChild(None, 'CI_DateTypeCode', code)
         CI_DateTypeCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode')
@@ -872,7 +958,10 @@ class XMLBuilder(object):
             geographicIdentifier = EX_GeographicDescription.newChild(None, 'geographicIdentifier', None)
             MD_Identifier = geographicIdentifier.newChild(None, 'MD_Identifier', None)
             authority = MD_Identifier.newChild(None, 'authority', None)
-            authority.addChild(self.thesaurusToXML(extent.thesaurus))
+            if not isinstance(extent.thesaurus, Nil):
+                authority.addChild(self.thesaurusToXML(extent.thesaurus))
+            else:
+                self.setNodeValue(authority, extent.thesaurus)
 
             code = MD_Identifier.newChild(None, 'code', None)
             CharacterString = code.newChild(self.ns['gco'], 'CharacterString', escape(str(extent.term)))
@@ -894,10 +983,8 @@ class XMLBuilder(object):
             None, 'EX_VerticalExtent', None)
         minimumValue = EX_VerticalExtent.newChild(None, 'minimumValue', None)
         maximumValue = EX_VerticalExtent.newChild(None, 'maximumValue', None)
-        minimumValue.setNsProp(
-            self.ns['gco'], 'Real', escape(str(vextent.minimum)))
-        maximumValue.setNsProp(
-            self.ns['gco'], 'Real', escape(str(vextent.maximum)))
+        self.setNodeValue(minimumValue, vextent.minimum, 'Real')
+        self.setNodeValue(maximumValue, vextent.maximum, 'Real')
         verticalCRS = EX_VerticalExtent.newChild(None, 'verticalCRS', None)
         verticalCRS.setNsProp(
             self.ns['xlink'], 'href', escape(str(vextent.crs)))
@@ -922,9 +1009,7 @@ class XMLBuilder(object):
         RS_Identifier = referenceSystemIdentifier.newChild(
             None, 'RS_Identifier', None)
         code = RS_Identifier.newChild(None, 'code', None)
-        CharacterString = code.newChild(
-            self.ns['gco'], 'CharacterString',
-            escape(str(srs)))
+        self.setNodeValue(code, srs, 'CharacterString')
         codeSpace = RS_Identifier.newChild(None, 'codeSpace', None)
         CharacterString = codeSpace.newChild(
             self.ns['gco'], 'CharacterString', 'OGP')
@@ -939,15 +1024,24 @@ class XMLBuilder(object):
             return None
 
         ref = self.m.temporal_reference
+        if not (ref.begin or ref.end):
+            return None
+
         temporalElement = self.doc.newDocNode(self.ns['gmd'], 'temporalElement', None)
         EX_TemporalExtent = temporalElement.newChild(None, 'EX_TemporalExtent', None)
         extent = EX_TemporalExtent.newChild(None, 'extent', None)
         TimePeriod = extent.newChild(self.ns['gml'], 'TimePeriod', None)
         TimePeriod.setNsProp(self.ns['gml'], 'id', 'medinMEDIN01')
-        TimePeriod.newChild(None, 'beginPosition', escape(str(ref.begin)))
+
+        if ref.begin:
+            TimePeriod.newChild(None, 'beginPosition', escape(str(ref.begin)))
+        elif ref.end:
+            beginPosition = TimePeriod.newChild(None, 'beginPosition', escape(str(ref.end)))
+            beginPosition.setProp('indeterminatePosition', 'before')
+            
         if ref.end:
             TimePeriod.newChild(None, 'endPosition', escape(str(ref.end)))
-        else:
+        elif ref.begin:
             # default to the system time
             from datetime import date
             end = date.today()
@@ -985,7 +1079,7 @@ class XMLBuilder(object):
         lineage = self.doc.newDocNode(self.ns['gmd'], 'lineage', None)
         LI_Lineage = lineage.newChild(None, 'LI_Lineage', None)
         statement = LI_Lineage.newChild(None, 'statement', None)
-        statement.newChild(self.ns['gco'], 'CharacterString', escape(str(self.m.lineage)))
+        self.setNodeValue(statement, self.m.lineage, 'CharacterString')
         return lineage
 
     def spatialResolution(self):
@@ -1002,13 +1096,9 @@ class XMLBuilder(object):
         for x in self.m.spatial_resolutions:
             if x.distance is not None:
                 distance = MD_Resolution.newChild(None, 'distance', None)
-                if x.distance == 'inapplicable':
-                    distance.setNsProp(
-                        self.ns['gco'], 'nilReason', 'inapplicable')
-                else:
-                    Distance = distance.newChild(self.ns['gco'], 'Distance',
-                                                 escape(str(x.distance)))
-                    Distance.setProp('uom', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/uom/gmxUom.xml#m')
+                self.setNodeValue(distance, x.distance, 'Distance', {
+                        'uom': 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/uom/gmxUom.xml#m'
+                        })
             elif x.equivalent_scale is not None:
                 equivalentScale = MD_Resolution.newChild(
                     None, 'equivalentScale', None)
@@ -1016,8 +1106,7 @@ class XMLBuilder(object):
                     None, 'MD_RepresentativeFraction', None)
                 denominator = MD_RepresentativeFraction.newChild(
                     None, 'denominator', None)
-                denominator.newChild(self.ns['gco'], 'Integer',
-                                     escape(str(x.equivalent_scale)))
+                self.setNodeValue(denominator, x.equivalent_scale, 'Integer')
         return spatialResolution
 
     def additionalInfo(self):
@@ -1060,11 +1149,14 @@ class XMLBuilder(object):
         terms = self.m.access_constraint_terms
         if terms:
             for term in terms:
-                restriction = escape(term.term)
                 accessConstraints = self.doc.newDocNode(self.ns['gmd'], 'accessConstraints', None)
-                MD_RestrictionCode = accessConstraints.newChild(None, 'MD_RestrictionCode', restriction)
-                MD_RestrictionCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#MD_RestrictionCode')
-                MD_RestrictionCode.setProp('codeListValue', restriction)
+                if not isinstance(term, Nil):
+                    restriction = escape(term.term)
+                    MD_RestrictionCode = accessConstraints.newChild(None, 'MD_RestrictionCode', restriction)
+                    MD_RestrictionCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#MD_RestrictionCode')
+                    MD_RestrictionCode.setProp('codeListValue', restriction)
+                else:
+                    self.setNodeValue(accessConstraints, term)
                 nodes.append(accessConstraints)
 
         # process the free text constraints
@@ -1103,17 +1195,17 @@ class XMLBuilder(object):
         individual = party.individual
         if individual:
             individualName = CI_ResponsibleParty.newChild(None, 'individualName', None)
-            individualName.newChild(self.ns['gco'], 'CharacterString', escape(str(individual)))
+            self.setNodeValue(individualName, individual, 'CharacterString')
 
         organisation = party.organisation
         if organisation:
             organisationName = CI_ResponsibleParty.newChild(None, 'organisationName', None)
-            organisationName.newChild(self.ns['gco'], 'CharacterString', escape(str(organisation)))
+            self.setNodeValue(organisationName, organisation, 'CharacterString')
 
         position = party.position
         if position:
             positionName = CI_ResponsibleParty.newChild(None, 'positionName', None)
-            positionName.newChild(self.ns['gco'], 'CharacterString', escape(str(position)))
+            self.setNodeValue(positionName, position, 'CharacterString')
 
         details = []
         if party.phone or party.fax:
@@ -1121,33 +1213,35 @@ class XMLBuilder(object):
             CI_Telephone = phone.newChild(None, 'CI_Telephone', None)
             if party.phone:
                 voice = CI_Telephone.newChild(None, 'voice', None)
-                voice.newChild(self.ns['gco'], 'CharacterString', escape(str(party.phone)))
+                self.setNodeValue(voice, party.phone, 'CharacterString')
             if party.fax:
-                voice = CI_Telephone.newChild(None, 'facsimile', None)
-                voice.newChild(self.ns['gco'], 'CharacterString', escape(str(party.fax)))
+                facsimile = CI_Telephone.newChild(None, 'facsimile', None)
+                self.setNodeValue(facsimile, party.fax, 'CharacterString')
             details.append(phone)
 
         address = self.doc.newDocNode(self.ns['gmd'], 'address', None)
         CI_Address = address.newChild(None, 'CI_Address', None)
         if party.address:
             for point in party.address.splitlines():
+                if not point:
+                    continue
                 deliveryPoint = CI_Address.newChild(None, 'deliveryPoint', None)
-                deliveryPoint.newChild(self.ns['gco'], 'CharacterString', escape(str(point)))
+                self.setNodeValue(deliveryPoint, point, 'CharacterString')
         if party.city:
             deliveryPoint = CI_Address.newChild(None, 'city', None)
-            deliveryPoint.newChild(self.ns['gco'], 'CharacterString', escape(str(party.city)))
+            self.setNodeValue(deliveryPoint, party.city, 'CharacterString')
         if party.state:
             deliveryPoint = CI_Address.newChild(None, 'administrativeArea', None)
-            deliveryPoint.newChild(self.ns['gco'], 'CharacterString', escape(str(party.state)))
+            self.setNodeValue(deliveryPoint, party.state, 'CharacterString')
         if party.zipcode:
             deliveryPoint = CI_Address.newChild(None, 'postalCode', None)
-            deliveryPoint.newChild(self.ns['gco'], 'CharacterString', escape(str(party.zipcode)))
+            self.setNodeValue(deliveryPoint, party.zipcode, 'CharacterString')
         if party.country:
             deliveryPoint = CI_Address.newChild(None, 'country', None)
-            deliveryPoint.newChild(self.ns['gco'], 'CharacterString', escape(str(party.country)))
+            self.setNodeValue(deliveryPoint, party.country, 'CharacterString')
         if party.email:
             electronicMailAddress = CI_Address.newChild(None, 'electronicMailAddress', None)
-            electronicMailAddress.newChild(self.ns['gco'], 'CharacterString', escape(str(party.email)))
+            self.setNodeValue(electronicMailAddress, party.email, 'CharacterString')
         if CI_Address.children:
             details.append(address)
 
@@ -1155,7 +1249,8 @@ class XMLBuilder(object):
             onlineResource = self.doc.newDocNode(self.ns['gmd'], 'onlineResource', None)
             CI_OnlineResource = onlineResource.newChild(None, 'CI_OnlineResource', None)
             linkage = CI_OnlineResource.newChild(None, 'linkage', None)
-            linkage.newChild(None, 'URL', escape(str(party.website)))
+            URL = linkage.newChild(None, 'URL', None)
+            self.setNodeValue(URL, party.website)
             details.append(onlineResource)
 
         if details:
@@ -1240,9 +1335,10 @@ class XMLBuilder(object):
             resourceFormat = self.doc.newDocNode(self.ns['gmd'], 'resourceFormat', None)
             MD_Format = resourceFormat.newChild(None, 'MD_Format', None)
             name = MD_Format.newChild(None, 'name', None)
-            name.newChild(self.ns['gco'], 'CharacterString', escape(str(term.term)))
+            self.setNodeValue(name, term.term, 'CharacterString')
             version = MD_Format.newChild(None, 'version', None)
-            version.setNsProp(self.ns['gco'], 'nilReason', 'unknown')
+            self.setNodeValue(version, Nil('unknown'))
+            nodes.append(resourceFormat)
 
         return nodes
 

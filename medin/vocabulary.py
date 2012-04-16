@@ -78,7 +78,7 @@ class Term(Base):
         return "<%s('%s')>" % (self.__class__.__name__, self.term)
 
     def __hash__(self):
-        return hash(self.code + str(self.thesaurus_id))
+        return hash(''.join([str(v) for v in [self.code, self.thesaurus_id] if v]))
 
 class ISOThesaurus(Thesaurus):
     __mapper_args__ = {'polymorphic_identity': 'iso-code'} # used to populate thesauri.type
@@ -189,7 +189,10 @@ class NERCTerm(Term):
         self._left.extend(terms)
 
     def __init__(self, key, term, abbrv, definition=None):
-        code = key.rsplit('/', 1)[-1]
+        try:
+            code = key.rsplit('/', 1)[-1]
+        except AttributeError:
+            code = None
         super(NERCTerm, self).__init__(code, term, definition)
         self.key = key
         self.abbrv = abbrv
@@ -495,6 +498,9 @@ class Session(object):
 
     def getMEDINFormat(self, word):
         return self._getTerm(word, MEDINFormat)
+
+    def getTopicCategoryFromCode(self, code):
+        return self._getTermFromCode(code, TopicCategory)
 
     def getINSPIREDataTypeFromCode(self, code):
         return self._getTermFromCode(code, INSPIREDataType)

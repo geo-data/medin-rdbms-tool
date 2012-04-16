@@ -43,13 +43,13 @@ class ValidationError(Exception):
 class ErrorHandler:
 
     def __init__(self):
-        self.errors = []
+        self.errors = set()
 
     def handler(self, msg, data):
-        self.errors.append(msg.strip())
+        self.errors.add(msg.strip())
 
     def clear(self):
-        self.errors = []
+        self.errors.clear()
 
 class Validator(object):
     """
@@ -124,7 +124,7 @@ class Validator(object):
         xpath_ctxt = result.xpathNewContext()
         xpath_ctxt.xpathRegisterNs('svrl', 'http://purl.oclc.org/dsdl/svrl')
 
-        errors = [e.getContent().strip() for e in xpath_ctxt.xpathEval('//svrl:failed-assert/svrl:text/text()')]
+        errors = set((e.getContent().strip() for e in xpath_ctxt.xpathEval('//svrl:failed-assert/svrl:text/text()')))
         if errors:
             raise SchemaError('The schematron validation failed', errors)
 

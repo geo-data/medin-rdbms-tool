@@ -141,7 +141,7 @@ Basic Usage:
         for input_ in inputs:
             if input_ == '-':
                 log('Reading standard input')
-                yield libxml2.readFd(stdin.fileno(), 'stdin', 'utf-8', 0)
+                yield libxml2.parseFile(input_)
             elif os.path.isfile(input_) or os.path.islink(input_):
                 log('Reading file %s' % input_)
                 yield libxml2.parseFile(input_)
@@ -186,7 +186,7 @@ Basic Usage:
                 die(msg)
 
             # deal with validation warnings
-            if warning and validate:
+            if warning:
                 if options.validation == 'strict':
                     die('Validation Error: %s' % str(warning))
                 warnings.warn(str(warning), warning.__class__)

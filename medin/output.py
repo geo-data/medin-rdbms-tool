@@ -226,11 +226,23 @@ class DirOutput(Output):
             directory = curdir
         self.directory = abspath(directory)
 
+    def createUniqueFilename(self):
+        import os
+        count = len(os.listdir(self.directory)) + 1
+        filename = os.path.join(self.directory, '%d.xml' % count)
+        while os.path.exists(filename):
+            count += 1
+            filename = os.path.join(self.directory, '%d.xml' % count)
+        return filename
+
     def _createFlush(self, xml, doc, unique_id):
         from os.path import join
 
         def flush():
-            filename = unique_id.id + '.xml'
+            if unique_id:
+                filename = unique_id.id + '.xml'
+            else:
+                filename = self.createUniqueFilename()
             path = join(self.directory, filename)
             try:
                 with open(path, 'w') as fh:
