@@ -45,6 +45,29 @@ def getSpatialReferenceSystem(code):
     except KeyError:
         return code
 
+def getPresentationType(code):
+    mapping = {
+        '001': 'digital representation of a primarily textual item (can contain illustrations also)',
+        '002': 'representation of a primarily textual item (can contain illustrations also) on paper, photographic material, or other media',
+        '003': 'likeness of natural or man-made features, objects, and activities acquired through the sensing of visual or any other segment of the electromagnetic spectrum by sensors, such as thermal infrared, and high resolution radar and stored in digital format',
+        '004': 'likeness of natural or man-made features, objects, and activities acquired through the sensing of visual or any other segment of the electromagnetic spectrum by sensors, such as thermal infrared, and high resolution radar and reproduced on paper, photographic material, or other media for use directly by the human user',
+        '005': 'map represented in raster or vector form',
+        '006': 'map printed on paper, photographic material, or other media for use directly by the human user',
+        '007': 'multi-dimensional digital representation of a feature, process, etc.',
+        '008': '3-dimensional, physical model',
+        '009': 'vertical cross-section in digital form',
+        '010': 'vertical cross-section printed on paper, etc.',
+        '011': 'digital representation of facts or figures systematically displayed, especially in columns',
+        '012': 'representation of facts or figures systematically displayed, especially in columns, printed on paper, photographic material, or other media',
+        '013': 'digital video recording',
+        '014': 'video recording on film'
+        }
+
+    try:
+        return mapping[code]
+    except KeyError:
+        return code
+
 def die(msg):
     """End the program with a message to standard error"""
 
@@ -348,6 +371,7 @@ if value:
 info = [getXpathValue(doc, '/GEMINIDiscoveryMetadata/supplementalInformation')]
 value = getXpathValue(doc, '/GEMINIDiscoveryMetadata/presentationType')
 if value:
+    value = getPresentationType(value)
     info.append("Presentation type: %s" % value)
 
 value = getXpathValue(doc, '/GEMINIDiscoveryMetadata/spatialRepresentation')
