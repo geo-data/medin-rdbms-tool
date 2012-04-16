@@ -23,6 +23,28 @@ class Term(object):
     def __init__(self, term):
         self.term = term
 
+def getSpatialReferenceSystem(code):
+    mapping = {
+        '001': 'urn:ogc:def:crs:EPSG::27700',
+        '002': 'urn:ogc:def:crs:EPSG::29903',
+        '003': 'urn:ogc:def:crs:EPSG::2157',
+        '004': 'urn:ogc:def:crs:EPSG::4326',
+        '011': 'postcode',
+        '012': 'parish',
+        '013': 'ward',
+        '014': 'electoral constituency',
+        '015': 'census area',
+        '016': 'local authority',
+        '017': 'region',
+        '018': 'country',
+        '019': 'Health Authority area'
+        }
+
+    try:
+        return mapping[code]
+    except KeyError:
+        return code
+
 def die(msg):
     """End the program with a message to standard error"""
 
@@ -178,7 +200,9 @@ for value in getXpathValues(doc, '/GEMINIDiscoveryMetadata/useConstraint'):
         term = value
     metadata.use_limitations.append(term)
 
-copyXpathValue(doc, '/GEMINIDiscoveryMetadata/spatialReferenceSystem', metadata, 'srs', 'missing')
+value = getXpathValue(doc, '/GEMINIDiscoveryMetadata/spatialReferenceSystem')
+if value:
+    metadata.srs = getSpatialReferenceSystem(value)
 
 values = getXpathValues(doc, '/GEMINIDiscoveryMetadata/spatialResolution')
 if values:
