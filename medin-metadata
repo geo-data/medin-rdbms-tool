@@ -60,195 +60,11 @@ def die(msg):
 
     sys.exit(1)
 
-def main():
+def output_metadata(options, provider):
     """
-    The main program
+    Output metadata according to command line switches
     """
-
-    from optparse import OptionParser
-
-    # try and load the medin modules
-    try:
-        import medin
-        from medin import log, __version__
-        from medin.util import check_environment
-        from medin.output import MIMEOutput, FileOutput, DirOutput, ValidationWarning
-        import medin.schema
-    except ImportError:
-        die('The medin module could not be found. Please ensure it is in your python module search path.')
-    
-    # parse out the command options
-    usage = """usage: %prog [OPTION]... [SCHEMA] [CONNSTRING]
-
-  Extract metadata from a data provider database as MEDIN XML.
-
-Basic Usage:
-  SCHEMA is the name of the database schema in use by the provider
-  database e.g. 'medin-235'.
-
-  CONNSTRING is the connection parameter string for accessing the
-  database. It should be in the following format:
-
-  dialect://user:password@host/dbname
-
-  where dialect is the name of the database system e.g
-
-  oracle://me:mypass@myhost/mydb
-
-  details of supported dialects are available at:
-  http://www.sqlalchemy.org/docs/core/engines.html#supported-dbapis
-
-  The CONNSTRING 'example' is a special argument that connects to a
-  bundled sqlite database. This is a reference implementation of the
-  medin schema based on the BODC EDMED oracle database. It can be
-  called as follows:
-
-  %prog medin-235 example
-
-Validation:
-  Passing 'warn' or 'strict' to the program using the --validation
-  option will validate the XML before it is output. A three step
-  validation is performed:
-
-  1. Validate against the ISO TC 211 W3C schema.
-  2. Validate against the ISO TS 19139 A1 Constraints (version 1.3)
-  3. Validate against the Medin Metadata Profile (version 1.7)
-
-  Any XML document passing these tests complies with the Medin
-  Metadata requirements."""
-
-    parser = OptionParser(usage=usage, version="%%prog %s" % str(__version__))
-
-    # add the command line options
-    parser.add_option("-l", '--list-schemas', action="store_true",
-                      help="List the available schemas and exit")
-    parser.add_option("-u", '--update-vocabs', action="store_true",
-                      help="Update the locally stored vocabularies from the internet")
-    parser.add_option("-c", '--update-contacts', action="store_true",
-                      help="Update the locally stored contacts from the internet")
-    parser.add_option("-d", '--debug', action="store_true",
-                      help="Enable debugging output")
-    parser.add_option("-i", '--metadata-id', action="append",
-                      help="Output a specific resource ID. The ID must be the fully qualified unique resource identifier (Element 6 e.g. http://www.bodc.ac.uk/EDMED587). This option can be specified multiple times.")
-    parser.add_option("-n", '--no-mime', action="store_true",
-                      help="Do not encapsulate the XML output in MIME format. This is only useful when --destination is not specified.")
-    parser.add_option("-o", '--destination', metavar='DIRECTORY',
-                      help="Output the XML to the specified DIRECTORY. Existing files are over-written.")
-    parser.add_option("-v", '--validation', default='strict', metavar='LEVEL',
-                      choices=['none', 'warn', 'strict'],
-                      help="""Control validation of output XML. LEVEL can be one of: 'none' - disable validation; 'warn' - output warning messages for failed validations; 'strict' (default) - output a warning message for a failed validation and exit the program""")
-
-    (options, args) = parser.parse_args()
-    try:
-        schema_name, connstr = args
-    except ValueError:
-        if not options.update_vocabs and not options.list_schemas and not options.update_contacts:
-            parser.error("incorrect number of arguments")
-        schema_name = connstr = None
-
-    # turn on debugging
-    global DEBUG
-    if options.debug:
-        DEBUG = medin.DEBUG = True
-
-    try:
-        check_environment()
-    except EnvironmentError, e:
-        die(str(e))
-
-    # list the available schemas
-    if options.list_schemas:
-        from glob import glob1
-        from os.path import splitext, dirname
-        schemas = [f for f in [splitext(f)[0] for f in glob1(dirname(medin.schema.__file__), '*.py')] if f != '__init__']
-        if not schemas:
-            print "No schemas could be found!"
-        else:
-            print "Available schemas:"
-            for schema in schemas:
-                print '  '+schema
-        return
-
-    # start vocabulary and contact sessions
-    import medin.vocabulary
-    import medin.contact
-    vocabs = medin.vocabulary.Session()
-    contacts = medin.contact.Session()
-
-    # update the vocabularies
-    if options.update_vocabs:
-        log("Setting up vocabularies")
-        vocabs.create()    # clear and create the schema and hard-coded data
-        log("Updating vocabularies from online sources")
-        vocabs.update()    # update the online vocabs
-
-    # update the contacts
-    if options.update_contacts:
-        log("Setting up contacts")
-        contacts.create()    # clear and create the schema
-        log("Updating contacts from online sources")
-        contacts.update()    # update the online contacts
-
-    if not schema_name:
-        # the user only asked for vocabs and/or contacts to be updated
-        return
-
-    # create the database engine
-    from sqlalchemy import create_engine
-    from sqlalchemy.exc import ArgumentError, OperationalError, DatabaseError
-    engine = None
-    if connstr == 'example':
-        from os.path import join, dirname, abspath
-        
-        dbname = abspath(join(dirname(medin.__file__),'data','example.sqlite'))
-        connstr = 'sqlite:///'+dbname
-
-    try:
-        engine = create_engine(connstr, echo=medin.DEBUG)
-    except ArgumentError, e:
-        die('Bad CONNSTRING: %s' % str(e))
-    except ImportError, e:
-        die('The database driver could not be found for the connection \'%s\': %s' % (connstr, e))
-
-    # try and load the schema plugin
-    log('Attempting to load schema %s' % schema_name)
-    import imp
-    try:
-        schema_module = imp.load_module(schema_name, *imp.find_module(schema_name, medin.schema.__path__))
-    except ImportError:
-        die('The schema is not supported: %s' % schema_name)
-
-    # verify the schema plugin against the database schema
-    provider = schema_module.Session(engine, vocabs, contacts)
-
-    try:
-        errors = provider.verifySchema()
-    except (OperationalError, DatabaseError), e:
-        die('Database error: %s' % e.args[0])
-    
-    if errors:
-        msg = """The database schema does not match the %s schema:
-%s""" % (schema_name, "\n".join(errors))
-        die(msg)
-
-    # retrieve the metadata
-    if options.metadata_id:
-        ids = set(options.metadata_id)
-
-        def metadata_generator():
-            for metadata_id in ids:
-                # get a specific metadata id
-                log('Getting metadata id %s' % metadata_id)
-                metadata = provider.getMetadataById(metadata_id)
-                if not metadata:
-                    die('A metadata entry with the following id does not exist: %s' % metadata_id)
-                yield metadata
-    else:
-        log('Retrieving all metadata entries')
-
-        def metadata_generator():
-            for metadata in provider:
-                yield metadata
+    from medin.output import MIMEOutput, FileOutput, DirOutput, ValidationWarning    
 
     # determine the output format
     validate = options.validation != 'none'
@@ -261,7 +77,7 @@ Validation:
 
     # output the metadata entries with appropriate validation messages
     with output:
-        for flush, warning in output(metadata_generator()):
+        for flush, warning in output(provider()):
             try:
                 flush()              # output this metadata record
             except IOError, e:
@@ -276,6 +92,124 @@ Validation:
                 if options.validation == 'strict':
                     die('Validation Error: %s' % str(warning))
                 warnings.warn(str(warning), warning.__class__)
+
+def main():
+    """
+    The main program
+    """
+
+    from argparse import ArgumentParser, RawDescriptionHelpFormatter, ArgumentError
+
+    # try and load the medin modules
+    try:
+        import medin
+        from medin import log, __version__
+        from medin.util import check_environment
+        import medin.schema
+    except ImportError:
+        die('The medin module could not be found. Please ensure it is in your python module search path.')
+    
+    # parse out the command options
+    description = """  Extract metadata from a metadata source and output it as MEDIN XML.
+
+basic usage: 
+  Call the program specifying one of the available metadata sources
+  (listed below) to output MEDIN metadata.  Each metadata source has
+  its own specific command line arguments which can be listed by using
+  the `--help` option after the data source of interest e.g.
+
+  %(prog)s medin-rdbms --help
+
+  There are a number of global options (also listed below) which can
+  be applied before specifying the data source.
+"""
+    epilog = """validation:
+  Passing 'warn' or 'strict' to the program using the --validation
+  option will validate the XML before it is output. A three step
+  validation is performed:
+
+  1. Validate against the ISO TC 211 W3C schema.
+  2. Validate against the ISO TS 19139 A1 Constraints (version 1.3)
+  3. Validate against the Medin Metadata Profile (version 1.7)
+
+  Any XML document passing these tests complies with the Medin
+  Metadata requirements."""
+
+    parser = ArgumentParser(
+        description=description,
+        epilog=epilog,
+        formatter_class=RawDescriptionHelpFormatter
+        )
+
+    # add the command line options
+    parser.add_argument("-u", '--update-vocabs', action="store_true",
+                        help="Update the locally stored vocabularies from the internet")
+    parser.add_argument("-c", '--update-contacts', action="store_true",
+                        help="Update the locally stored contacts from the internet")
+    parser.add_argument("-d", '--debug', action="store_true",
+                        help="Enable debugging output")
+    parser.add_argument("-n", '--no-mime', action="store_true",
+                        help="Do not encapsulate the XML output in MIME format. This is only useful when --destination is not specified.")
+    parser.add_argument("-o", '--destination', metavar='DIRECTORY',
+                        help="Output the XML to the specified DIRECTORY. Existing files are over-written.")
+    parser.add_argument("-v", '--validation', default='strict', metavar='LEVEL',
+                        choices=['none', 'warn', 'strict'],
+                        help="""Control validation of output XML. LEVEL can be one of: 'none' - disable validation; 'warn' - output warning messages for failed validations; 'strict' (default) - output a warning message for a failed validation and exit the program""")
+    parser.add_argument('--version', action='version', version='%%(prog)s %s' % str(__version__))
+    
+    # Load the available subparsers
+    subparsers = parser.add_subparsers(title='sources',
+                                       description='available sources of metadata.',
+                                       help='Select a metadata source with the appropriate command line arguments in order to output the metadata. Specify `--help` after the source in order to detail the source specific options available.')
+    from glob import glob1
+    from os.path import splitext
+    import imp
+    schemas = [f for f in [splitext(f)[0] for f in glob1(medin.schema.__path__[0], '*.py')] if f != '__init__']
+    for schema_name in schemas:
+        schema_module = imp.load_module(schema_name, *imp.find_module(schema_name, medin.schema.__path__))
+        schema_module.set_argument_subparser(subparsers)
+
+    options = parser.parse_args()
+
+    # turn on debugging
+    global DEBUG
+    if options.debug:
+        DEBUG = medin.DEBUG = True
+
+    try:
+        check_environment()
+    except EnvironmentError, e:
+        die(str(e))
+
+    # start vocabulary and contact sessions
+    import medin.vocabulary
+    import medin.contact
+    vocabs = medin.vocabulary.Session()
+    contacts = medin.contact.Session()
+        
+    # update the vocabularies
+    if options.update_vocabs:
+        log("Setting up vocabularies")
+        vocabs.create()    # clear and create the schema and hard-coded data
+        log("Updating vocabularies from online sources")
+        vocabs.update()    # update the online vocabs
+
+    # update the contacts
+    if options.update_contacts:
+        log("Setting up contacts")
+        contacts.create()    # clear and create the schema
+        log("Updating contacts from online sources")
+        contacts.update()    # update the online contacts
+
+    if not options.func:
+        return
+
+    try:
+        provider = options.func(options, vocabs, contacts)
+    except (ArgumentError, RuntimeError), e:
+        die(str(e))
+
+    output_metadata(options, provider)
 
 if __name__ == '__main__':
     try:

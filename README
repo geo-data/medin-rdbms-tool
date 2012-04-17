@@ -13,8 +13,8 @@ README-Windows.txt file for details.
 PREREQUISITES
 -------------
 
-The tool requires Python version >= 2.6 and < 3. There are also some
-library dependencies that the tool relies on:
+The tool requires Python version 2.7. There are also some library
+dependencies that the tool relies on:
 
 - libxml2 (http://xmlsoft.org/python.html) for xml interaction
 
@@ -66,16 +66,17 @@ which has been used as a reference implementation for the medin schema
 defined at
 http://www.oceannet.org/marine_data_standards/medin_approved_standards/documents/medin_usermanaged_tables_user.doc
 
-You can access this sample database as follows:
+You can access this sample database using the `medin-rdbms` source as
+follows:
 
-./medin-metadata medin example
+./medin-metadata medin-rdbms example
 
-Assuming you have a database schema identical to the BODC EDMED one
+Assuming you have a database implementing the MEDIN metadata schema
 and are using an Oracle database called 'EDMED' on the machine
 'myhost' with the username 'me' and the password 'secret' you should
 be able to connect to it as follows:
 
-./medin-metadata medin oracle://me:secret@myhost/EDMED
+./medin-metadata medin-rdbms oracle://me:secret@myhost/EDMED
 
 CONTACT
 -------

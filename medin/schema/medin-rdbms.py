@@ -892,3 +892,89 @@ Format) translated from codes to text using the thesaurus."""))
         for metadata in self.sess.query(Metadata).order_by(Metadata.METADATAID):
             metadata.vocabs = self.vocabs
             yield metadata
+
+def set_argument_subparser(subparsers):
+    import argparse
+    description = """  Extract metadata from a data provider RDBMS implementing the MEDIN
+  version 2.3.5 database schema.
+
+basic usage:
+  CONNSTRING should be in the following format:
+
+  dialect://user:password@host/dbname
+
+  where dialect is the name of the database system e.g
+
+  oracle://me:mypass@myhost/mydb
+
+  Details of supported dialects are available at:
+  http://www.sqlalchemy.org/docs/core/engines.html#supported-dbapis
+
+  The CONNSTRING `example` is a special argument that connects to a
+  bundled sqlite database. This is a reference implementation of the
+  medin schema based on the BODC EDMED oracle database. It can be
+  called as follows:
+
+  %(prog)s example
+"""
+    
+    subparser = subparsers.add_parser(
+        'medin-rdbms',
+        description=description,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    def get_provider(args, vocabs, contacts):
+        # create the database engine
+        import medin
+        from sqlalchemy import create_engine
+        from sqlalchemy.exc import ArgumentError, OperationalError, DatabaseError
+        engine = None
+        connstr = args.connstr[0]
+        if connstr == 'example':
+            from os.path import join, abspath
+
+            dbname = abspath(join(medin.__path__[0],'data','example.sqlite'))
+            connstr = 'sqlite:///'+dbname
+
+        try:
+            engine = create_engine(connstr, echo=medin.DEBUG)
+        except ArgumentError, e:
+            raise argparse.ArgumentError('Bad CONNSTRING: %s' % str(e))
+        except ImportError, e:
+            raise argparse.ArgumentError('The database driver could not be found for the connection \'%s\': %s' % (connstr, e))
+
+        # verify the schema plugin against the database schema
+        provider = Session(engine, vocabs, contacts)
+
+        try:
+            errors = provider.verifySchema()
+        except (OperationalError, DatabaseError), e:
+            raise RuntimeError('Database error: %s' % e.args[0])
+
+        if errors:
+            msg = """The actual database schema does not match the required MEDIN schema:
+    %s""" % "\n".join(errors)
+            raise RuntimeError(msg)
+
+        # retrieve the metadata
+        if args.metadata_id:
+            ids = set(args.metadata_id)
+
+            def metadata_generator():
+                for metadata_id in ids:
+                    # get a specific metadata id
+                    metadata = provider.getMetadataById(metadata_id)
+                    if not metadata:
+                        raise RuntimeError('A metadata entry with the following id does not exist: %s' % metadata_id)
+                    yield metadata
+        else:
+            def metadata_generator():
+                for metadata in provider:
+                    yield metadata
+
+        return metadata_generator
+
+    subparser.add_argument("-i", '--metadata-id', action="append",
+                           help="Output a specific resource ID. The ID must be the fully qualified unique resource identifier (Element 6 e.g. http://www.bodc.ac.uk/EDMED587). This option can be specified multiple times.")
+    subparser.add_argument("connstr", nargs=1, metavar='CONNSTRING',
+                           help="CONNSTRING is the connection parameter string for accessing the database")
+    subparser.set_defaults(func=get_provider)
