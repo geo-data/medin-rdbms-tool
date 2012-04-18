@@ -38,10 +38,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.schema import CreateTable
 import medin.vocabulary
 import medin.contact
-import medin.schema
+import medin.source
 import imp
 
-schema_module = imp.load_module('medin', *imp.find_module('medin', medin.schema.__path__))
+schema_module = imp.load_module('medin', *imp.find_module('medin', medin.source.__path__))
 e = create_engine('oracle://medin/mdip@localhost:1521/XE')
 vocabs = medin.vocabulary.Session()
 contacts = medin.contact.Session()

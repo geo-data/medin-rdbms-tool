@@ -371,6 +371,9 @@ class BoundingBox(object):
     def __repr__(self):
         return "<%s(%s)>" % (self.__class__.__name__, str(self))
 
+    def __nonzero__(self):
+        return bool(self.minx or self.miny or self.maxx or self.maxy)
+
     def __str__(self):
         return '[%s, %s, %s, %s]' % tuple([str(o) for o in (self.minx, self.miny, self.maxx, self.maxy)])
 
@@ -591,7 +594,9 @@ class XMLBuilder(object):
         for node in self.topicCategories():
             MD_DataIdentification.addChild(node)
 
-        MD_DataIdentification.addChild(self.extent())
+        node = self.extent()
+        if node:
+            MD_DataIdentification.addChild(node)
 
         SV_ServiceIdentification = self.serviceIdentification()
         if SV_ServiceIdentification: MD_DataIdentification.addChild(SV_ServiceIdentification)
@@ -666,7 +671,9 @@ class XMLBuilder(object):
         node = self.verticalExtent()
         if node: EX_Extent.addChild(node)
 
-        return extent
+        if EX_Extent.children:
+            return extent
+        return None
 
     def title(self):
         """
@@ -877,18 +884,26 @@ class XMLBuilder(object):
 
         geographicElement = self.doc.newDocNode(self.ns['gmd'], 'geographicElement', None)
         EX_GeographicBoundingBox = geographicElement.newChild(None, 'EX_GeographicBoundingBox', None)
-        westBoundLongitude = EX_GeographicBoundingBox.newChild(
-            None, 'westBoundLongitude', None)
-        eastBoundLongitude = EX_GeographicBoundingBox.newChild(
-            None, 'eastBoundLongitude', None)
-        southBoundLatitude = EX_GeographicBoundingBox.newChild(
-            None, 'southBoundLatitude', None)
-        northBoundLatitude = EX_GeographicBoundingBox.newChild(
-            None, 'northBoundLatitude', None)
-        self.setNodeValue(westBoundLongitude, bbox.minx, 'Decimal')
-        self.setNodeValue(eastBoundLongitude, bbox.maxx, 'Decimal')
-        self.setNodeValue(southBoundLatitude, bbox.miny, 'Decimal')
-        self.setNodeValue(northBoundLatitude, bbox.maxy, 'Decimal')
+        if bbox.minx:
+            westBoundLongitude = EX_GeographicBoundingBox.newChild(
+                None, 'westBoundLongitude', None)
+            self.setNodeValue(westBoundLongitude, bbox.minx, 'Decimal')
+
+        if bbox.maxx:
+            eastBoundLongitude = EX_GeographicBoundingBox.newChild(
+                None, 'eastBoundLongitude', None)
+            self.setNodeValue(eastBoundLongitude, bbox.maxx, 'Decimal')
+
+        if bbox.miny:
+            southBoundLatitude = EX_GeographicBoundingBox.newChild(
+                None, 'southBoundLatitude', None)
+            self.setNodeValue(southBoundLatitude, bbox.miny, 'Decimal')
+
+        if bbox.maxy:
+            northBoundLatitude = EX_GeographicBoundingBox.newChild(
+                None, 'northBoundLatitude', None)
+            self.setNodeValue(northBoundLatitude, bbox.maxy, 'Decimal')
+
         return geographicElement
 
     def dateToXML(self, date):
@@ -1222,7 +1237,7 @@ class XMLBuilder(object):
         address = self.doc.newDocNode(self.ns['gmd'], 'address', None)
         CI_Address = address.newChild(None, 'CI_Address', None)
         if party.address:
-            for point in (p.strip() for p in party.address.splitlines()):
+            for point in (p.strip(', ') for p in party.address.splitlines()):
                 if not point:
                     continue
                 deliveryPoint = CI_Address.newChild(None, 'deliveryPoint', None)

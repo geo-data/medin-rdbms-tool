@@ -40,7 +40,7 @@ a sqlalchemy mapping from the database schema to the medin.Metadata
 class.
 """
 
-from medin.schema import Session
+from medin.source import Session
 import medin.metadata as metadata
 from medin.vocabulary import Session as Vocabulary
 from medin.contact import Session as Contacts

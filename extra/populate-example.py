@@ -58,9 +58,9 @@ print "Copying %s to %s" % (src_connstr, dst_connstr)
 source, src_e = make_session(src_connstr)
 destination, dst_e = make_session(dst_connstr)
 
-import medin.schema
+import medin.source
 import imp
-schema_module = imp.load_module('medin', *imp.find_module('medin', medin.schema.__path__))
+schema_module = imp.load_module('medin', *imp.find_module('medin', medin.source.__path__))
 
 vocabs = medin.vocabulary.Session()
 contacts = medin.contact.Session()

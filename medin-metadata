@@ -105,7 +105,7 @@ def main():
         import medin
         from medin import log, __version__
         from medin.util import check_environment
-        import medin.schema
+        import medin.source
     except ImportError:
         die('The medin module could not be found. Please ensure it is in your python module search path.')
     
@@ -164,9 +164,9 @@ basic usage:
     from glob import glob1
     from os.path import splitext
     import imp
-    schemas = [f for f in [splitext(f)[0] for f in glob1(medin.schema.__path__[0], '*.py')] if f != '__init__']
+    schemas = [f for f in [splitext(f)[0] for f in glob1(medin.source.__path__[0], '*.py')] if f != '__init__']
     for schema_name in schemas:
-        schema_module = imp.load_module(schema_name, *imp.find_module(schema_name, medin.schema.__path__))
+        schema_module = imp.load_module(schema_name, *imp.find_module(schema_name, medin.source.__path__))
         schema_module.set_argument_subparser(subparsers)
 
     options = parser.parse_args()

@@ -72,7 +72,7 @@ package_args = dict(
     author_email='hrz@geodata.soton.ac.uk',
     url='http://www.geodata.soton.ac.uk',
     requires=['libxml2', 'libxslt', 'suds', 'sqlalchemy'],
-    packages=['medin', 'medin.schema'],
+    packages=['medin', 'medin.source'],
     package_data={'medin': ['data/isotc211/*.txt',
                             'data/isotc211/gco/*',
                             'data/isotc211/gfc/*',
@@ -118,7 +118,7 @@ try:
                                  'sqlalchemy.dialects.oracle',
                                  'cx_Oracle',
                                  'xml.etree.ElementTree',
-                                 'medin.schema.medin-235'],
+                                 'medin.source.medin-rdbms'],
                     "dll_excludes": ["oci.dll"], # exclude oracle version specific dll (http://www.py2exe.org/index.cgi/ExcludingDlls)
                     "optimize": 2,
                     'skip_archive': True
