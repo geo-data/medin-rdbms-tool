@@ -204,7 +204,13 @@ class Metadata(object):
 
         mapped = set(existing)
         for term in keywords:
-            for match in term.getMatches():
+            try:
+                matches = term.getMatches()
+            except AttributeError:
+                # the term doesn't support the correct interface
+                continue
+
+            for match in matches:
                 if match.thesaurus_id == 3: # it's a Topic Category (P051)
                     mapped.add(match)
 
@@ -862,9 +868,9 @@ class XMLBuilder(object):
                     url = None
 
                 if not url:
-                    CharacterString = keyword.newChild(self.ns['gco'], 'CharacterString', escape(term.getTerm()))
+                    CharacterString = keyword.newChild(self.ns['gco'], 'CharacterString', escape(term.term))
                 else:
-                    Anchor = keyword.newChild(self.ns['gmx'], 'Anchor', escape(term.getTerm()))
+                    Anchor = keyword.newChild(self.ns['gmx'], 'Anchor', escape(term.term))
                     Anchor.setNsProp(self.ns['xlink'], 'href', escape(str(url)))
 
             if term.thesaurus:
