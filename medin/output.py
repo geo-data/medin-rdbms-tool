@@ -28,8 +28,10 @@ MEDIN Output Module
 This module contains a number of Output classes that write
 medin.metadata.Metadata objects to various destinations in XML format
 """
-from warnings import warn
 from medin import MedinWarning
+import logging
+logger = logging.getLogger(__name__)
+
 
 class ValidationWarning(MedinWarning):
     pass
@@ -99,7 +101,6 @@ class Output(object):
         """
         from cStringIO import StringIO
         import libxml2
-        from medin import log
 
         warning = None          # contains any validation warning
 
@@ -109,7 +110,7 @@ class Output(object):
         # try and validate the xml
         if self.validator:
             from medin.validate import ValidationError
-            log('Validating document (%s)' % unique_id)
+            logger.info('Validating document (%s)' % unique_id)
 
             try:
                 self.validator(doc)
@@ -117,12 +118,13 @@ class Output(object):
                 msg = 'This document (%s) is NOT valid MEDIN metadata: %s' % (unique_id, e.args[0])
                 status = 'Validation status: '+msg
                 warning = ValidationWarning(msg)
+                logger.error(status)
             else:
                 status = 'Validation status: This document (%s) is valid MEDIN metadata' % unique_id
-                log(status)
+                logger.info(status)
         else:
             status = 'Validation status: This document (%s) has NOT been validated as conforming to the MEDIN Metadata Standard' % unique_id
-            log(status)
+            logger.info(status)
         # save the validation status in the document itself
         comment = doc.newDocComment(status)
         doc.getRootElement().addPrevSibling(comment)

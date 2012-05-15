@@ -29,35 +29,28 @@ import sys
 sys = reload(sys)
 sys.setdefaultencoding('utf-8')
 
-DEBUG = False                           # controls debugging output
+import logging
+logging.captureWarnings(True)   # convert warnings into loggable events
 
-# replace the default warning display function with our own
-import warnings
-from warnings import showwarning as defaultwarning
-def showwarning(message, category, *args, **kwargs):
-    """
-    Replacement for default warnings.showwarning
+class Filter(logging.Filter):
+    def __init__(self, logger, *args, **kwargs):
+        self.logger = logger
+        super(Filter, self).__init__(*args, **kwargs)
 
-    This function only shows warnings when in debugging mode unless
-    they are medin warnings in which case they are always output.
-    """
-    from medin import MedinWarning
-    global DEBUG
-    if DEBUG:
-        defaultwarning(message, category, *args, **kwargs)
-    elif issubclass(category, MedinWarning):
-        sys.stderr.write("WARNING: %s\n" % message)
-warnings.showwarning = showwarning
+    def filter(self, record):
+        if record.exc_info and logger.getEffectiveLevel() > logging.DEBUG:
+            # don't allow logs with exceptions (i.e. from
+            # logging.exception()) unless we are DEBUGging
+            return False
+        return super(Filter, self).filter(record)
+
+logger = logging.getLogger('main')
+logger.addFilter(Filter(logger))
 
 def die(msg):
     """End the program with a message to standard error"""
 
     sys.stderr.write("%s\n" % msg)
-    try:
-        log(msg)
-    except NameError:
-        pass                    # for when the medin module can't be imported
-
     sys.exit(1)
 
 def output_metadata(options, provider):
@@ -85,25 +78,25 @@ def output_metadata(options, provider):
                     msg = '%s: %s' % (e.strerror, e.filename)
                 else:
                     msg = e.strerror
+                logger.exception(e)
                 die(msg)
 
             # deal with validation warnings
             if warning and validate:
                 if options.validation == 'strict':
-                    die('Validation Error: %s' % str(warning))
-                warnings.warn(str(warning), warning.__class__)
+                    die('The metadata failed to validate.')
 
 def main():
     """
     The main program
     """
 
-    from argparse import ArgumentParser, RawDescriptionHelpFormatter, ArgumentError
+    from argparse import ArgumentParser, RawDescriptionHelpFormatter, ArgumentError, FileType
 
     # try and load the medin modules
     try:
         import medin
-        from medin import log, __version__
+        from medin import __version__
         from medin.util import check_environment
         import medin.source
     except ImportError:
@@ -142,12 +135,6 @@ basic usage:
         )
 
     # add the command line options
-    parser.add_argument("-u", '--update-vocabs', action="store_true",
-                        help="Update the locally stored vocabularies from the internet")
-    parser.add_argument("-c", '--update-contacts', action="store_true",
-                        help="Update the locally stored contacts from the internet")
-    parser.add_argument("-d", '--debug', action="store_true",
-                        help="Enable debugging output")
     parser.add_argument("-n", '--no-mime', action="store_true",
                         help="Do not encapsulate the XML output in MIME format. This is only useful when --destination is not specified.")
     parser.add_argument("-o", '--destination', metavar='DIRECTORY',
@@ -156,6 +143,22 @@ basic usage:
                         choices=['none', 'warn', 'strict'],
                         help="""Control validation of output XML. LEVEL can be one of: 'none' - disable validation; 'warn' - output warning messages for failed validations; 'strict' (default) - output a warning message for a failed validation and exit the program""")
     parser.add_argument('--version', action='version', version='%%(prog)s %s' % str(__version__))
+
+    update_group = parser.add_argument_group('updating', """Options affecting the program's internal data caches. Updating a cache
+once will make the new data available to subsequent invocations of the
+program.
+""")
+    update_group.add_argument("-u", '--update-vocabs', action="store_true",
+                        help="Update the locally stored vocabularies from the internet")
+    update_group.add_argument("-c", '--update-contacts', action="store_true",
+                        help="Update the locally stored contacts from the internet")
+
+    log_group = parser.add_argument_group('logging', 'Options affecting the how the program logs its actions.')
+    log_levels = [logging.getLevelName(l).lower() for l in (logging.CRITICAL, logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG)]
+    log_group.add_argument('--log-level', default='warning', choices=log_levels,
+                           help="Determine the verbosity of the application, defaulting to 'warning'.")
+    log_group.add_argument('--log-output', metavar='FILE', type=FileType('w'), default=sys.stdout,
+                           help="Save the logging output to a file. The default logs to standard output.")
     
     # Load the available subparsers
     subparsers = parser.add_subparsers(title='sources',
@@ -171,14 +174,16 @@ basic usage:
 
     options = parser.parse_args()
 
-    # turn on debugging
-    global DEBUG
-    if options.debug:
-        DEBUG = medin.DEBUG = True
+    # set the log level
+    log_level = getattr(logging, options.log_level.upper())
+    logging.basicConfig(level=log_level, stream=options.log_output)
+    logger.debug('Processed by Python %s' % sys.version)
+    logger.debug('Invoked as: %s' % ' '.join(sys.argv))
 
     try:
         check_environment()
     except EnvironmentError, e:
+        logger.exception(e)
         die(str(e))
 
     # start vocabulary and contact sessions
@@ -189,16 +194,16 @@ basic usage:
         
     # update the vocabularies
     if options.update_vocabs:
-        log("Setting up vocabularies")
+        logger.info("Setting up vocabularies")
         vocabs.create()    # clear and create the schema and hard-coded data
-        log("Updating vocabularies from online sources")
+        logger.info("Updating vocabularies from online sources")
         vocabs.update()    # update the online vocabs
 
     # update the contacts
     if options.update_contacts:
-        log("Setting up contacts")
+        logger.info("Setting up contacts")
         contacts.create()    # clear and create the schema
-        log("Updating contacts from online sources")
+        logger.info("Updating contacts from online sources")
         contacts.update()    # update the online contacts
 
     if not options.func:
@@ -207,6 +212,7 @@ basic usage:
     try:
         provider = options.func(options, vocabs, contacts)
     except (ArgumentError, RuntimeError), e:
+        logger.exception(e)
         die(str(e))
 
     output_metadata(options, provider)
@@ -222,7 +228,5 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         die("\nProgram interrupted! Exiting...")
     except Exception, e:
-        if DEBUG:
-            raise
-        else:
-            die('FATAL ERROR: %s' % e)
+        logger.exception(e)
+        die('FATAL ERROR: %s' % e)

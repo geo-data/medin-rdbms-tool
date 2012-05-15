@@ -21,6 +21,7 @@
 # 
 # You can obtain a full copy of the RPL from
 # http://opensource.org/licenses/rpl1.5.txt or geodata@soton.ac.uk
+import logging
 
 class Version(object):
     """Representation of program version information"""
@@ -167,13 +168,39 @@ def get_engine(name):
         pass
 
     from os.path import dirname, join, abspath
-    from medin import DEBUG
     from sqlalchemy import create_engine
 
     dbname = abspath(join(dirname(__file__), 'data', name))
     uri = 'sqlite:///'+dbname
-    engine = create_engine(uri, echo=DEBUG)
+    engine = create_engine(uri)
     engine.execute('PRAGMA foreign_keys = ON') # we need referential integrity!
     engines[name] = engine                     # cache the engine
     
     return engine
+
+class Proxy(object):
+    """
+    Proxy class
+
+    This class wraps an object. It passes all unhandled attribute
+    calls to the underlying object. This enables the proxy to override
+    the underlying object's attributes. In practice this works like
+    runtime inheritance.
+    """
+    def __init__(self, obj):
+        self._obj = obj
+
+    def __getattr__(self, name):
+        return getattr(self._obj, name)
+
+class LoggerProxy(Proxy):
+    """
+    A proxy logger that propagates log levels to sqlalchemy loggers
+
+    This is necessary because sqlalchemy loggers need to explicitly
+    enable logging at `logging.INFO` and below.
+    """
+    def setLevel(self, level):
+        logging.getLogger('sqlalchemy').setLevel(level)
+        self._obj.setLevel(level)    
+

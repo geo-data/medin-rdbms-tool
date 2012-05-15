@@ -22,23 +22,16 @@
 # You can obtain a full copy of the RPL from
 # http://opensource.org/licenses/rpl1.5.txt or geodata@soton.ac.uk
 
-__version__ = '0.16'
+__version__ = '0.17'
+
+import logging
+logger = logging.getLogger(__name__)
 
 # ensure we are using UTF-8. Catching this here will save headaches
 # later!
 import sys
 if sys.getdefaultencoding() != 'utf-8':
-    raise RuntimeError('Bad default Python encoding detected. MEDIN is expected to use UTF-8, found: %s' % sys.getdefaultencoding())
-
-# Setting this to True after loading the module enables debugging
-# output
-DEBUG = False
-def log(msg):
-    """
-    Log a debugging message to STDOUT
-    """
-    from medin import DEBUG
-    if DEBUG: print msg
+    logger.critical('Bad default Python encoding detected. MEDIN is expected to use UTF-8, found: %s' % sys.getdefaultencoding())
 
 class MedinWarning(Warning):
     """

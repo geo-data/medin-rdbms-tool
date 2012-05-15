@@ -45,7 +45,11 @@ import medin.metadata as metadata
 from medin.vocabulary import Session as Vocabulary
 from medin.contact import Session as Contacts
 from sqlalchemy.orm import reconstructor
+from medin.util import LoggerProxy
 import datetime
+
+import logging
+logger = LoggerProxy(logging.getLogger(__name__))
 
 # The metadata classes
 class Metadata(metadata.Metadata):
@@ -923,6 +927,9 @@ basic usage:
         description=description,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     def get_provider(args, vocabs, contacts):
+        logger.info('Using the %s metadata source' % __name__)
+        logger.setLevel(getattr(logging, args.log_level.upper()))
+
         # create the database engine
         import medin
         from sqlalchemy import create_engine
@@ -936,7 +943,7 @@ basic usage:
             connstr = 'sqlite:///'+dbname
 
         try:
-            engine = create_engine(connstr, echo=medin.DEBUG)
+            engine = create_engine(connstr)
         except ArgumentError, e:
             raise argparse.ArgumentError('Bad CONNSTRING: %s' % str(e))
         except ImportError, e:

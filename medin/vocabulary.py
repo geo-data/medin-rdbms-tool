@@ -27,6 +27,9 @@ from sqlalchemy import Table, Column, Integer, Boolean, String, Date, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
 from medin.util import get_engine
+import logging
+
+logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 
@@ -389,20 +392,19 @@ class Session(object):
         """
         Update the vocabularies from the web
         """
-        from medin import log
-
         # update the NERC vocabularies
+        logger.info('Updating NERC vocabularies')
         nerc_vocab = NERCVocab()
         urls = []
         for thesaurus in self.session.query(NERCThesaurus):
-            log("Updating thesaurus %s..." % thesaurus.name)
+            logger.debug("Updating thesaurus %s..." % thesaurus.name)
             thesaurus.terms = nerc_vocab.getTerms(thesaurus.url)
-            log("%s has %d entries" % (thesaurus.name, len(thesaurus.terms)))
+            logger.debug("%s has %d entries" % (thesaurus.name, len(thesaurus.terms)))
             if thesaurus.mapped:
                 urls.append(thesaurus.url)
 
         # set the term mappings
-        log("Setting term mappings")
+        logger.debug("Setting term mappings")
         for key, matches in nerc_vocab.getMatches(urls).items():
             term = self.session.query(NERCTerm).filter(NERCTerm.key==key).one()
             terms = self.session.query(NERCTerm).filter(NERCTerm.key.in_(matches))

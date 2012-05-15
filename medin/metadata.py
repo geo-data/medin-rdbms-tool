@@ -32,6 +32,7 @@ package.
 """
 import libxml2
 from xml.sax.saxutils import escape
+from medin.util import Proxy
 
 class Metadata(object):
     """
@@ -215,21 +216,6 @@ class Metadata(object):
                     mapped.add(match)
 
         return mapped
-
-class Proxy(object):
-    """
-    Proxy class
-
-    This class wraps an object. It passes all unhandled attribute
-    calls to the underlying object. This enables the proxy to override
-    the underlying object's attributes. In practice this works like
-    runtime inheritance.
-    """
-    def __init__(self, obj):
-        self._obj = obj
-
-    def __getattr__(self, name):
-        return getattr(self._obj, name)
 
 class Year(Proxy):
     """

@@ -1,10 +1,12 @@
 import datetime
 import libxml2
-import medin
 import medin.metadata
 import medin.vocabulary
 from copy import copy
 from string import strip
+
+import logging
+logger = logging.getLogger(__name__)
 
 class Term(object):
     """
@@ -154,7 +156,6 @@ def transformPoint(x, y, z=0):
 
     return  _ct.TransformPoint(x, y, z)
 
-import warnings
 import re
 _start_tag = re.compile('.*(<\w+).+')
 def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
@@ -162,6 +163,13 @@ def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
     Parse a GEMINI XML file into a MEDIN metadata object
     """
 
+    global libxml_err
+    libxml_err = ''
+    def errorhandler(ctxt, msg, severity, reserved):
+        global libxml_err
+        libxml_err += '%s' % msg
+    
+    logger.info('Parsing %s' % filename)
     try:
         if filename != '-':
             try:
@@ -187,14 +195,19 @@ def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
         if line:
             xml += fh.read()
 
-        try:
-            # parseMemory is used instead of directly using parseFile
-            # because parseFile stalls for a long time when passed
-            # HTML input
-            doc = libxml2.parseMemory(xml, len(xml))
-        except libxml2.parserError:
+        parserCtxt = libxml2.createMemoryParserCtxt(xml, len(xml))
+        parserCtxt.setErrorHandler(errorhandler, None)
+
+        # a memory parser is used instead of directly using a file
+        # parser because the latter stalls for a long time when passed
+        # HTML input
+        parsed = parserCtxt.parseDocument()
+        if libxml_err:
+            logger.debug('libxml2 error: %s' % libxml_err.strip()) # output the libxml error messages
+        if parsed != 0:
             raise RuntimeError('The input could not be parsed as XML: %s' % filename)
 
+        doc = parserCtxt.doc()
         if doc.getRootElement().name != 'GEMINIDiscoveryMetadata':
             raise RuntimeError('The XML document does not appear to be GEMINI metadata: %s' % filename)
         version = getXpathValue(doc, '/GEMINIDiscoveryMetadata/metadataStandardVersion')
@@ -206,7 +219,7 @@ def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
     except RuntimeError, e:
         if not skip_invalid:
             raise
-        warnings.warn(str(e), medin.MedinWarning)
+        logger.warn(str(e))
         return None
 
     metadata = medin.metadata.Metadata()
@@ -463,13 +476,8 @@ basic usage:
         formatter_class=argparse.RawDescriptionHelpFormatter)
 
     def get_provider(args, vocabs, contacts):
-        import libxml2
+        logger.info('Using the %s metadata source' % __name__)
 
-        # avoid libxml2 error messages
-        def noerr(ctx, str):
-            pass
-        libxml2.registerErrorHandler(noerr, None)
-        
         def metadata_generator():
             for metadata in parse_files(args.input, vocabs, args.uuid, args.codespace, args.skip_invalid, True, args.recurse):
                 yield metadata

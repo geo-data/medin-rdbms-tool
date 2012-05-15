@@ -25,6 +25,9 @@
 from sqlalchemy import Column, Integer, String, Index
 from sqlalchemy.ext.declarative import declarative_base
 from medin.util import get_engine
+import logging
+
+logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 
@@ -123,6 +126,8 @@ class Session(object):
         """
         from sqlalchemy import MetaData
         
+        logger.info('Preparing organisation database')
+
         # drop all existing tables
         current = MetaData(self.engine)
         current.reflect()
@@ -138,14 +143,13 @@ class Session(object):
         """
         Update the organisations from the web
         """
-        from medin import log
 
         # update the organisations
-        log('Retrieving organisations from EDMO')
+        logger.info('Retrieving organisations from EDMO')
         source = Organisations()
         organisations = source.getOrganisations()
 
-        log('Updating existing organisations')
+        logger.info('Updating existing organisations')
         self.session.add_all(organisations)
         self.session.commit()
 
