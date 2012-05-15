@@ -67,7 +67,7 @@ check_environment()
 package_args = dict(
     name='medin-metadata',
     version=__version__,
-    description='Tool to extract MEDIN XML metadata from a DAC RDBMS and optionally validate it',
+    description='A tool to generate MEDIN XML metadata from selected data sources and optionally validate it',
     author='Homme Zwaagstra',
     author_email='hrz@geodata.soton.ac.uk',
     url='http://www.geodata.soton.ac.uk',

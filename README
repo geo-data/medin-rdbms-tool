@@ -69,14 +69,14 @@ http://www.oceannet.org/marine_data_standards/medin_approved_standards/documents
 You can access this sample database using the `medin-rdbms` source as
 follows:
 
-./medin-metadata medin-rdbms example
+./medin-metadata output medin-rdbms example
 
 Assuming you have a database implementing the MEDIN metadata schema
 and are using an Oracle database called 'EDMED' on the machine
 'myhost' with the username 'me' and the password 'secret' you should
 be able to connect to it as follows:
 
-./medin-metadata medin-rdbms oracle://me:secret@myhost/EDMED
+./medin-metadata output medin-rdbms oracle://me:secret@myhost/EDMED
 
 CONTACT
 -------
