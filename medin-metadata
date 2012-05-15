@@ -105,18 +105,108 @@ def main():
     # parse out the command options
     description = """  Extract metadata from a metadata source and output it as MEDIN XML.
 
-basic usage: 
-  Call the program specifying one of the available metadata sources
-  (listed below) to output MEDIN metadata.  Each metadata source has
-  its own specific command line arguments which can be listed by using
-  the `--help` option after the data source of interest e.g.
+basic usage:
+  The program is called with an action (listed below). All actions
+  have specific options associated with them. These can be found by
+  using the `--help` option after the action of interest e.g.
+
+  %(prog)s output --help
+
+  The most common action is `output`: this is used to generate MEDIN
+  XML from a data source.
+  
+  There are a number of global options (also listed below) which can
+  be applied before specifying the action.
+"""
+    parser = ArgumentParser(
+        description=description,
+        formatter_class=RawDescriptionHelpFormatter
+        )
+
+    # add the global command line options
+    parser.add_argument('--version', action='version', version='%%(prog)s %s' % str(__version__))
+
+    # groups the options used for logging
+    log_group = parser.add_argument_group('logging', 'Options affecting the how the program logs its actions.')
+    log_levels = [logging.getLevelName(l).lower() for l in (logging.CRITICAL, logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG)]
+    log_group.add_argument('--log-level', default='warning', choices=log_levels,
+                           help="Determine the verbosity of the application, defaulting to 'warning'.")
+    log_group.add_argument('--log-output', metavar='FILE', type=FileType('w'), default=sys.stdout,
+                           help="Save the logging output to a file. The default logs to standard output.")
+
+    # Create the action subparsers
+    action_parsers = parser.add_subparsers(
+        title='actions',
+        description='available tool actions, the most common being `output`.',
+        help='Select an action for the tool to perform. Specify `--help` after the action in order to detail the specific options available for that action.')
+
+    def do_update(args, vocabs, contacts):
+        """
+        Perform the `update` action
+        """
+        # set the same logging level for the SQLAlchemy package as
+        # that used for the rest of the application:
+        logging.getLogger('sqlalchemy').setLevel(logger.getEffectiveLevel())
+
+        # update the vocabularies
+        if not args.exclude_vocabs:
+            logger.info("Setting up vocabularies")
+            vocabs.create()    # clear and create the schema and hard-coded data
+            logger.info("Updating vocabularies from online sources")
+            vocabs.update()    # update the online vocabs
+        else:
+            logger.info('Skipping vocabulary update')
+
+        # update the contacts
+        if not args.exclude_contacts:
+            logger.info("Setting up contacts")
+            contacts.create()    # clear and create the schema
+            logger.info("Updating contacts from online sources")
+            contacts.update()    # update the online contacts
+        else:
+            logger.info('Skipping contact update')
+
+    update_parser = action_parsers.add_parser(
+        'update',
+        description="""  Update the tool's internal data caches (requires online access). 
+
+  The caches contain local data for MEDIN vocabulary and EDMO contact
+  databases. Updating a database will replace the previous data with
+  the latest data available from the internet.  Once updated, the new
+  data will be available to subsequent invocations of the program.
+
+basic usage:
+  %(prog)s
+""",
+        formatter_class=RawDescriptionHelpFormatter)
+
+    update_parser.add_argument('--exclude-vocabs', action="store_true",
+                               help="Do not update the locally stored vocabularies database")
+    update_parser.add_argument('--exclude-contacts', action="store_true",
+                               help="Do not update the locally stored contacts database")
+    update_parser.set_defaults(action=do_update)
+
+    def do_output(args, vocabs, contacts):
+        """
+        Perform the `output` action
+        """
+        provider = args.output(args, vocabs, contacts)
+        output_metadata(args, provider)
+
+    output_parser = action_parsers.add_parser(
+        'output',
+        description="""  Retrieve metadata from a data source and output it as MEDIN XML.
+
+basic usage:
+  Follow `output` by specifying with one of the available metadata
+  sources (listed below).  Metadata will be extracted from the source
+  and output as MEDIN XML.  Each metadata source has its own specific
+  command line arguments which can be listed by using the `--help`
+  option after the data source of interest e.g.
 
   %(prog)s medin-rdbms --help
-
-  There are a number of global options (also listed below) which can
-  be applied before specifying the data source.
-"""
-    epilog = """validation:
+""",
+        epilog="""validation:
   Passing 'warn' or 'strict' to the program using the --validation
   option will validate the XML before it is output. A three step
   validation is performed:
@@ -126,51 +216,33 @@ basic usage:
   3. Validate against the Medin Metadata Profile (version 1.7)
 
   Any XML document passing these tests complies with the Medin
-  Metadata requirements."""
+  Metadata requirements.""",
+        formatter_class=RawDescriptionHelpFormatter)
 
-    parser = ArgumentParser(
-        description=description,
-        epilog=epilog,
-        formatter_class=RawDescriptionHelpFormatter
-        )
+    output_parser.add_argument(
+        "-n", '--no-mime', action="store_true",
+        help="Do not encapsulate the XML output in MIME format. This is only useful when --destination is not specified.")
+    output_parser.add_argument(
+        "-o", '--destination', metavar='DIRECTORY',
+        help="Output the XML to the specified DIRECTORY. Existing files are over-written.")
+    output_parser.add_argument(
+        "-v", '--validation', default='strict', metavar='LEVEL',
+        choices=['none', 'warn', 'strict'],
+        help="""Control validation of output XML. LEVEL can be one of: 'none' - disable validation; 'warn' - output warning messages for failed validations; 'strict' (default) - output a warning message for a failed validation and exit the program""")
+    output_parser.set_defaults(action=do_output)
 
-    # add the command line options
-    parser.add_argument("-n", '--no-mime', action="store_true",
-                        help="Do not encapsulate the XML output in MIME format. This is only useful when --destination is not specified.")
-    parser.add_argument("-o", '--destination', metavar='DIRECTORY',
-                        help="Output the XML to the specified DIRECTORY. Existing files are over-written.")
-    parser.add_argument("-v", '--validation', default='strict', metavar='LEVEL',
-                        choices=['none', 'warn', 'strict'],
-                        help="""Control validation of output XML. LEVEL can be one of: 'none' - disable validation; 'warn' - output warning messages for failed validations; 'strict' (default) - output a warning message for a failed validation and exit the program""")
-    parser.add_argument('--version', action='version', version='%%(prog)s %s' % str(__version__))
-
-    update_group = parser.add_argument_group('updating', """Options affecting the program's internal data caches. Updating a cache
-once will make the new data available to subsequent invocations of the
-program.
-""")
-    update_group.add_argument("-u", '--update-vocabs', action="store_true",
-                        help="Update the locally stored vocabularies from the internet")
-    update_group.add_argument("-c", '--update-contacts', action="store_true",
-                        help="Update the locally stored contacts from the internet")
-
-    log_group = parser.add_argument_group('logging', 'Options affecting the how the program logs its actions.')
-    log_levels = [logging.getLevelName(l).lower() for l in (logging.CRITICAL, logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG)]
-    log_group.add_argument('--log-level', default='warning', choices=log_levels,
-                           help="Determine the verbosity of the application, defaulting to 'warning'.")
-    log_group.add_argument('--log-output', metavar='FILE', type=FileType('w'), default=sys.stdout,
-                           help="Save the logging output to a file. The default logs to standard output.")
-    
-    # Load the available subparsers
-    subparsers = parser.add_subparsers(title='sources',
-                                       description='available sources of metadata.',
-                                       help='Select a metadata source with the appropriate command line arguments in order to output the metadata. Specify `--help` after the source in order to detail the source specific options available.')
+    # Load the available source subparsers
+    source_parsers = output_parser.add_subparsers(
+        title='sources',
+        description='available sources of metadata.',
+        help='Select a metadata source with the appropriate command line arguments in order to output the metadata. Specify `--help` after the source in order to detail the source specific options available.')
     from glob import glob1
     from os.path import splitext
     import imp
     schemas = [f for f in [splitext(f)[0] for f in glob1(medin.source.__path__[0], '*.py')] if f != '__init__']
     for schema_name in schemas:
         schema_module = imp.load_module(schema_name, *imp.find_module(schema_name, medin.source.__path__))
-        schema_module.set_argument_subparser(subparsers)
+        schema_module.set_argument_subparser(source_parsers)
 
     options = parser.parse_args()
 
@@ -186,36 +258,21 @@ program.
         logger.exception(e)
         die(str(e))
 
+    if not options.action:
+        return
+
     # start vocabulary and contact sessions
     import medin.vocabulary
     import medin.contact
     vocabs = medin.vocabulary.Session()
     contacts = medin.contact.Session()
-        
-    # update the vocabularies
-    if options.update_vocabs:
-        logger.info("Setting up vocabularies")
-        vocabs.create()    # clear and create the schema and hard-coded data
-        logger.info("Updating vocabularies from online sources")
-        vocabs.update()    # update the online vocabs
 
-    # update the contacts
-    if options.update_contacts:
-        logger.info("Setting up contacts")
-        contacts.create()    # clear and create the schema
-        logger.info("Updating contacts from online sources")
-        contacts.update()    # update the online contacts
-
-    if not options.func:
-        return
-
+    # execute the action
     try:
-        provider = options.func(options, vocabs, contacts)
+        options.action(options, vocabs, contacts)
     except (ArgumentError, RuntimeError), e:
         logger.exception(e)
         die(str(e))
-
-    output_metadata(options, provider)
 
 if __name__ == '__main__':
     try:

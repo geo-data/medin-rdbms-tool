@@ -492,4 +492,4 @@ basic usage:
     subparser.add_argument('-s', '--skip-invalid', action='store_true',
                            help="Skip invalid input files, outputting a warning message. The default is for the program to terminate on invalid files.")
     subparser.add_argument("input", nargs='*', default='-', metavar='FILE', help="FILE is either a GEMINI XML file or a directory of such files in which case all files within the directory having a `.xml` extension are parsed.  This option can be specified multiple times and defaults to standard input.")
-    subparser.set_defaults(func=get_provider)
+    subparser.set_defaults(output=get_provider)

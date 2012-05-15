@@ -984,4 +984,4 @@ basic usage:
                            help="Output a specific resource ID. The ID must be the fully qualified unique resource identifier (Element 6 e.g. http://www.bodc.ac.uk/EDMED587). This option can be specified multiple times.")
     subparser.add_argument("connstr", nargs=1, metavar='CONNSTRING',
                            help="CONNSTRING is the connection parameter string for accessing the database")
-    subparser.set_defaults(func=get_provider)
+    subparser.set_defaults(output=get_provider)
