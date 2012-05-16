@@ -208,7 +208,7 @@ def create_date_time(ctxt, date_path, time_path):
                 date = date.replace(**dict([(k, getattr(time, k)) for k in ['hour', 'minute', 'second', 'microsecond']]))
 
     return date
-    
+
 import re
 _start_tag = re.compile('.*(<\w+).+')
 def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
@@ -221,7 +221,7 @@ def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
     def errorhandler(ctxt, msg, severity, reserved):
         global libxml_err
         libxml_err += '%s' % msg
-    
+
     logger.info('Parsing %s' % filename)
     try:
         if filename != '-':
@@ -300,7 +300,7 @@ def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
         resource_locator.url = url
         copyXpathValue(xpath, './title', resource_locator, 'description')
         copyXpathValue(xpath, './geoform', resource_locator, 'name')
-        
+
         metadata.resource_locators.append(resource_locator)
     xpath.setContextNode(doc)
 
@@ -413,6 +413,47 @@ def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
     else:
         metadata.use_limitations.append(value)
 
+    def build_responsible_party(node, role):
+        xpath.setContextNode(node)
+        party = medin.metadata.ResponsibleParty()
+        copyXpathValue(xpath, './cntpos', party, 'position')
+        copyXpathValue(xpath, './cntperp/cntorg', party, 'organisation')
+        copyXpathValue(xpath, './cntperp/cntper', party, 'individual')
+        copyXpathValue(xpath, './cntvoice', party, 'phone')
+        copyXpathValue(xpath, './cntaddr/city', party, 'city')
+        copyXpathValue(xpath, './cntaddr/state', party, 'state')
+        copyXpathValue(xpath, './cntaddr/postal', party, 'zipcode')
+        copyXpathValue(xpath, './cntaddr/country', party, 'country')
+        party.address = "\n".join(getXpathValues(xpath, './cntaddr/address'))
+        copyXpathValue(xpath, './cntfax', party, 'fax')
+        copyXpathValue(xpath, './cntemail', party, 'email', 'missing')
+        party.role = vocabs.getContactRole(role)
+        xpath.setContextNode(doc)
+        return party
+
+    contactNode = getXpath(xpath, '/metadata/idinfo/ptcontac/cntinfo')
+    if contactNode:
+        pointOfContact = build_responsible_party(contactNode, 'pointOfContact')
+        if pointOfContact:
+            metadata.responsible_parties.append(pointOfContact)
+
+    distributorNode = getXpath(xpath, '/metadata/idinfo/ptcontac/cntinfo')
+    if distributorNode:
+        distributor = build_responsible_party(distributorNode, 'distributor')
+        if distributor:
+            metadata.responsible_parties.append(distributor)
+
+    custodianNode = getXpath(xpath, '/metadata/metainfo/metc/cntinfo')
+    if custodianNode:
+        custodian = build_responsible_party(custodianNode, 'custodian')
+        if custodian:
+            metadata.responsible_parties.append(custodian)
+
+    for origin in getXpathValues(xpath, '/metadata/idinfo/citation/citeinfo/origin'):
+        originator = medin.metadata.ResponsibleParty()
+        originator.organisation = origin
+        originator.role = vocabs.getContactRole('originator')
+        metadata.responsible_parties.append(originator)
 
     #value = getXpathValue(doc, '/GEMINIDiscoveryMetadata/spatialReferenceSystem')
     #if value:
@@ -450,37 +491,6 @@ def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
 
     for value in getXpathValues(doc, '/GEMINIDiscoveryMetadata/dataFormat'):
         metadata.data_formats.extend([medin.vocabulary.Term(None, v) for v in map(strip, value.split(',')) if v])
-
-    distributorNode = getXpath(xpath, '/GEMINIDiscoveryMetadata/distributor')
-    if distributorNode:
-        xpath.setContextNode(distributorNode)
-        distributor = medin.metadata.ResponsibleParty()
-        copyXpathValue(xpath, './webAddress', distributor, 'website')
-        copyXpathValue(xpath, './contactTitle', distributor, 'position')
-        copyXpathValue(xpath, './name', distributor, 'organisation')
-        copyXpathValue(xpath, './telephone', distributor, 'phone')
-        copyXpathValue(xpath, './postalAddress', distributor, 'address')
-        copyXpathValue(xpath, './facsimile', distributor, 'fax')
-        copyXpathValue(xpath, './email', distributor, 'email', 'missing')
-        distributor.role = vocabs.getContactRole('distributor')
-        metadata.responsible_parties.append(distributor)
-
-        # copy the distributor to the point of contact
-        pointOfContact = copy(distributor)
-        pointOfContact.role = vocabs.getContactRole('pointOfContact')
-        metadata.responsible_parties.append(pointOfContact)
-
-        # copy the distributor to the custodian
-        custodian = copy(distributor)
-        custodian.role = vocabs.getContactRole('custodian')
-        metadata.responsible_parties.append(custodian)
-
-        # copy the distributor to the originator
-        originator = copy(distributor)
-        originator.role = vocabs.getContactRole('originator')
-        metadata.responsible_parties.append(originator)
-
-        xpath.setContextNode(doc)
 
     verticalNode = getXpath(xpath, '/GEMINIDiscoveryMetadata/verticalextent')
     if verticalNode:
