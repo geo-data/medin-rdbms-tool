@@ -131,8 +131,8 @@ basic usage:
     log_levels = [logging.getLevelName(l).lower() for l in (logging.CRITICAL, logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG)]
     log_group.add_argument('--log-level', default='warning', choices=log_levels,
                            help="Determine the verbosity of the application, defaulting to 'warning'.")
-    log_group.add_argument('--log-output', metavar='FILE', type=FileType('w'), default=sys.stdout,
-                           help="Save the logging output to a file. The default logs to standard output.")
+    log_group.add_argument('--log-output', metavar='FILE', type=FileType('w'), default=sys.stderr,
+                           help="Save the logging output to a file. The default logs to standard error.")
 
     # Create the action subparsers
     action_parsers = parser.add_subparsers(
