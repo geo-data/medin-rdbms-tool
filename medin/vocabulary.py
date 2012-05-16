@@ -83,6 +83,9 @@ class Term(Base):
     def __hash__(self):
         return hash(''.join([str(v) for v in [self.code, self.thesaurus_id] if v]))
 
+    def __str__(self):
+        return self.term
+
 class ISOThesaurus(Thesaurus):
     __mapper_args__ = {'polymorphic_identity': 'iso-code'} # used to populate thesauri.type
 

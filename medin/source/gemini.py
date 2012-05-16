@@ -2,11 +2,12 @@ import datetime
 import libxml2
 import medin.metadata
 import medin.vocabulary
+from medin.util import LoggerProxy
 from copy import copy
 from string import strip
 
 import logging
-logger = logging.getLogger(__name__)
+logger = LoggerProxy(logging.getLogger(__name__))
 
 class Term(object):
     """
@@ -372,7 +373,7 @@ def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
         copyXpathValue(xpath, './name', distributor, 'organisation')
         copyXpathValue(xpath, './telephone', distributor, 'phone')
         copyXpathValue(xpath, './postalAddress', distributor, 'address')
-        copyXpathValue(xpath, './facsimile', distributor, 'fax')
+        copyXpathValue(xpath, './facsimilie', distributor, 'fax')
         copyXpathValue(xpath, './email', distributor, 'email', 'missing')
         distributor.role = vocabs.getContactRole('distributor')
         metadata.responsible_parties.append(distributor)
@@ -477,6 +478,7 @@ basic usage:
 
     def get_provider(args, vocabs, contacts):
         logger.info('Using the %s metadata source' % __name__)
+        logger.setLevel(getattr(logging, args.log_level.upper()))
 
         def metadata_generator():
             for metadata in parse_files(args.input, vocabs, args.uuid, args.codespace, args.skip_invalid, True, args.recurse):

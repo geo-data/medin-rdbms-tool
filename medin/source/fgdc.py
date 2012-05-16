@@ -2,11 +2,12 @@ import datetime
 import libxml2
 import medin.metadata
 import medin.vocabulary
+from medin.util import LoggerProxy
 from copy import copy
 from string import strip
 
 import logging
-logger = logging.getLogger(__name__)
+logger = LoggerProxy(logging.getLogger(__name__))
 
 class Term(object):
     """
@@ -307,8 +308,7 @@ def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
     for value in getXpathValues(doc, '/metadata/idinfo/keywords/theme/themekey'):
         if not value:
             continue
-        term = medin.vocabulary.Term(None, value)
-        metadata.topic_categories.append(term)
+        metadata.topic_categories.extend([medin.vocabulary.Term(None, v) for v in map(strip, value.split(';')) if v])
 
     for value in getXpathValues(doc, '/metadata/idinfo/keywords/place/placekey'):
         if not value:
@@ -431,13 +431,14 @@ def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
         xpath.setContextNode(doc)
         return party
 
+    pointOfContact = None
     contactNode = getXpath(xpath, '/metadata/idinfo/ptcontac/cntinfo')
     if contactNode:
         pointOfContact = build_responsible_party(contactNode, 'pointOfContact')
         if pointOfContact:
             metadata.responsible_parties.append(pointOfContact)
 
-    distributorNode = getXpath(xpath, '/metadata/idinfo/ptcontac/cntinfo')
+    distributorNode = getXpath(xpath, '/metadata/distinfo/distrib/cntinfo')
     if distributorNode:
         distributor = build_responsible_party(distributorNode, 'distributor')
         if distributor:
@@ -449,58 +450,60 @@ def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
         if custodian:
             metadata.responsible_parties.append(custodian)
 
+        # if there is no point of contact, use the custodian in its
+        # place
+        if pointOfContact is None:
+            pointOfContact = copy(custodian)
+            pointOfContact.role = vocabs.getContactRole('pointOfContact')
+            metadata.responsible_parties.append(pointOfContact)
+
     for origin in getXpathValues(xpath, '/metadata/idinfo/citation/citeinfo/origin'):
         originator = medin.metadata.ResponsibleParty()
         originator.organisation = origin
         originator.role = vocabs.getContactRole('originator')
         metadata.responsible_parties.append(originator)
 
-    #value = getXpathValue(doc, '/GEMINIDiscoveryMetadata/spatialReferenceSystem')
-    #if value:
-    #    metadata.srs = getSpatialReferenceSystem(value)
+    for node in xpath.xpathEval('/metadata/distinfo/stdorder/digform/digtinfo'):
+        xpath.setContextNode(node)
+        fmt = getXpathValue(xpath, './formname')
+        term = medin.vocabulary.Term(None, fmt)
+        copyXpathValue(xpath, './formvern', term, 'version')
+        metadata.data_formats.append(term)
+    xpath.setContextNode(doc)
 
-    for value in getXpathValues(doc, '/GEMINIDiscoveryMetadata/BrowseGraphic'):
-        if not value: continue
-        resource_locator = medin.metadata.ResourceLocator()
-        resource_locator.url = value
-        resource_locator.name = 'Graphic'
-        resource_locator.description = 'The image associated with the dataset'
-        resource_locator.function = 'information'
-        metadata.resource_locators.append(resource_locator)
-
-    for extent in getXpathValues(doc, '/GEMINIDiscoveryMetadata/extent'):
-        if not extent:
-            continue
-        term = Term(extent)
-        term.thesaurus = medin.metadata.Nil('missing')
-        metadata.extents.append(term)
-
-    value = getXpathValue(doc, '/GEMINIDiscoveryMetadata/freqUpdate')
+    value = getXpathValue(doc, '/metadata/idinfo/status/update')
     freq = None
     if value:
-        freq = vocabs.getMaintenanceFrequencyFromCode(int(value))
-    if not freq:
+        freq = medin.vocabulary.Term(None, value)
+    else:
         freq = vocabs.getMaintenanceFrequency('unknown')
     metadata.update_frequency = freq.term
 
-    value = getXpathValue(doc, '/GEMINIDiscoveryMetadata/dateStamp')
+    for node in xpath.xpathEval('/metadata/idinfo/browse'):
+        xpath.setContextNode(node)
+        url = getXpathValue(xpath, './browsed')
+        if not url:
+            continue
+        resource_locator = medin.metadata.ResourceLocator()
+        resource_locator.url = url
+        resource_locator.name = getXpathValue(xpath, './browsen') or 'Graphic'
+        resource_locator.description = 'The image associated with the dataset'
+        fmt = getXpathValue(xpath, './browset')
+        if fmt:
+            resource_locator.description += ' in %s format' % fmt
+        resource_locator.function = 'information'
+        metadata.resource_locators.append(resource_locator)
+    xpath.setContextNode(doc)
+
+    value = getXpathValue(doc, '/metadata/metainfo/metd')
     try:
         metadata.date = parse_date(value)
     except ValueError:
         metadata.date = datetime.datetime.now()
 
-    for value in getXpathValues(doc, '/GEMINIDiscoveryMetadata/dataFormat'):
-        metadata.data_formats.extend([medin.vocabulary.Term(None, v) for v in map(strip, value.split(',')) if v])
-
-    verticalNode = getXpath(xpath, '/GEMINIDiscoveryMetadata/verticalextent')
-    if verticalNode:
-        xpath.setContextNode(verticalNode)
-        minimum = getXpathValue(xpath, './minvalue')
-        maximum = getXpathValue(xpath, './maxvalue')
-        crs = getXpathValue(xpath, './vertdatum')
-        metadata.vertical_extent = medin.metadata.VerticalExtent(minimum, maximum, crs)
-
-        xpath.setContextNode(doc)
+    #value = getXpathValue(doc, '/GEMINIDiscoveryMetadata/spatialReferenceSystem')
+    #if value:
+    #    metadata.srs = getSpatialReferenceSystem(value)
 
     doc.freeDoc()
     xpath.xpathFreeContext()
@@ -545,6 +548,7 @@ basic usage:
 
     def get_provider(args, vocabs, contacts):
         logger.info('Using the %s metadata source' % __name__)
+        logger.setLevel(getattr(logging, args.log_level.upper()))
 
         def metadata_generator():
             for metadata in parse_files(args.input, vocabs, args.uuid, args.codespace, args.skip_invalid, True, args.recurse):

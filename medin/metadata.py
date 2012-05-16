@@ -1229,11 +1229,12 @@ class XMLBuilder(object):
         address = self.doc.newDocNode(self.ns['gmd'], 'address', None)
         CI_Address = address.newChild(None, 'CI_Address', None)
         if party.address:
-            for point in (p.strip(', ') for p in party.address.splitlines()):
-                if not point:
-                    continue
-                deliveryPoint = CI_Address.newChild(None, 'deliveryPoint', None)
-                self.setNodeValue(deliveryPoint, point, 'CharacterString')
+            for line in  party.address.splitlines():
+                for point in (p.strip() for p in line.split(",")):
+                    if not point:
+                        continue
+                    deliveryPoint = CI_Address.newChild(None, 'deliveryPoint', None)
+                    self.setNodeValue(deliveryPoint, point, 'CharacterString')
         if party.city:
             deliveryPoint = CI_Address.newChild(None, 'city', None)
             self.setNodeValue(deliveryPoint, party.city, 'CharacterString')
@@ -1268,7 +1269,7 @@ class XMLBuilder(object):
 
         if party.role:
             role = CI_ResponsibleParty.newChild(None, 'role', None)
-            value = escape(str(party.role.term))
+            value = escape(str(party.role))
             CI_RoleCode = role.newChild(None, 'CI_RoleCode', value)
             CI_RoleCode.setProp('codeList', 'http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#CI_RoleCode')
             CI_RoleCode.setProp('codeListValue', value)
@@ -1344,7 +1345,13 @@ class XMLBuilder(object):
             name = MD_Format.newChild(None, 'name', None)
             self.setNodeValue(name, term.term, 'CharacterString')
             version = MD_Format.newChild(None, 'version', None)
-            self.setNodeValue(version, Nil('unknown'))
+            try:
+                ver = term.version
+            except AttributeError:
+                ver = None
+            if not ver:
+                ver = Nil('unknown')
+            self.setNodeValue(version, ver, 'CharacterString')
             nodes.append(resourceFormat)
 
         return nodes
