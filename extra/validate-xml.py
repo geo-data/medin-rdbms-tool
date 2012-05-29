@@ -31,35 +31,15 @@ import sys
 sys = reload(sys)
 sys.setdefaultencoding('utf-8')
 
-DEBUG = False                           # controls debugging output
+import logging
+logging.captureWarnings(True)   # convert warnings into loggable events
 
-# replace the default warning display function with our own
-import warnings
-from warnings import showwarning as defaultwarning
-def showwarning(message, category, *args, **kwargs):
-    """
-    Replacement for default warnings.showwarning
-
-    This function only shows warnings when in debugging mode unless
-    they are medin warnings in which case they are always output.
-    """
-    from medin import MedinWarning
-    global DEBUG
-    if DEBUG:
-        defaultwarning(message, category, *args, **kwargs)
-    elif issubclass(category, MedinWarning):
-        sys.stderr.write("WARNING: %s\n" % message)
-warnings.showwarning = showwarning
+logger = logging.getLogger('main')
 
 def die(msg):
     """End the program with a message to standard error"""
 
     sys.stderr.write("%s\n" % msg)
-    try:
-        log(msg)
-    except NameError:
-        pass                    # for when the medin module can't be imported
-
     sys.exit(1)
 
 def main():
@@ -72,10 +52,10 @@ def main():
     # try and load the medin modules
     try:
         import medin
-        from medin import log
         from medin.util import check_environment
         from medin.output import MIMEOutput, FileOutput, DirOutput, ValidationWarning, FilterXMLDoc
     except ImportError:
+        raise
         die('The medin module could not be found. Please ensure it is in your python module search path.')
     
     # parse out the command options
@@ -122,9 +102,8 @@ Basic Usage:
         inputs = ['-']          # default to STDIN
     
     # turn on debugging
-    global DEBUG
     if options.debug:
-        DEBUG = medin.DEBUG = True
+        logger.setLevel(logging.DEBUG)
 
     try:
         check_environment(True) # only check the XML support
@@ -140,18 +119,18 @@ Basic Usage:
     def metadata_generator():
         for input_ in inputs:
             if input_ == '-':
-                log('Reading standard input')
+                logger.info('Reading standard input')
                 yield libxml2.parseFile(input_)
             elif os.path.isfile(input_) or os.path.islink(input_):
-                log('Reading file %s' % input_)
+                logger.info('Reading file %s' % input_)
                 yield libxml2.parseFile(input_)
             elif os.path.isdir(input_):
-                log('Reading directory %s' % input_)
+                logger.info('Reading directory %s' % input_)
                 for metadata in iter_directory(input_, options.recurse):
                     yield metadata
             else:
                 # it must be a URL
-                log('Reading URL %s' % input_)
+                logger.info('Reading URL %s' % input_)
                 yield libxml2.parseFile(input_)
 
     def iter_directory(directory, recurse=False):
@@ -162,7 +141,7 @@ Basic Usage:
                     yield doc
             root, ext = os.path.splitext(entry)
             if ext == '.xml':
-                log('Reading file %s' % filename)
+                logger.info('Reading file %s' % filename)
                 yield libxml2.parseFile(filename)
                 
     # determine the output format
@@ -202,7 +181,5 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         die("\nProgram interrupted! Exiting...")
     except Exception, e:
-        if DEBUG:
-            raise
-        else:
-            die('FATAL ERROR: %s' % e)
+        logger.exception(e)
+        die('FATAL ERROR: %s' % e)
