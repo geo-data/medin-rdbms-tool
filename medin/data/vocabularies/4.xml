@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:skos="http://www.w3.org/2004/02/skos/core#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:grg="http://www.isotc211.org/schemas/grg/" xmlns:owlxml="http://www.w3.org/2006/12/owl2-xml#">
+  <skos:Collection rdf:about="./4.xml">
+    <skos:prefLabel>ISO maintainence frequency codelist</skos:prefLabel>
+    <dc:title>ISO maintainence frequency codelist</dc:title>
+    <dc:description>Controlled vocabulary for frequency of update</dc:description>
+    <skos:member>
+      <skos:Concept rdf:about="continual">
+        <skos:notation>ID::1</skos:notation>
+        <skos:prefLabel xml:lang="en">continual</skos:prefLabel>
+        <skos:definition xml:lang="en">data is repeatedly and frequently updated</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="daily">
+        <skos:notation>ID::2</skos:notation>
+        <skos:prefLabel xml:lang="en">daily</skos:prefLabel>
+        <skos:definition xml:lang="en">data is updated each day</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="weekly">
+        <skos:notation>ID::3</skos:notation>
+        <skos:prefLabel xml:lang="en">weekly</skos:prefLabel>
+        <skos:definition xml:lang="en">data is updated on a weekly basis</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="fortnightly">
+        <skos:notation>ID::4</skos:notation>
+        <skos:prefLabel xml:lang="en">fortnightly</skos:prefLabel>
+        <skos:definition xml:lang="en">data is updated every two weeks</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="monthly">
+        <skos:notation>ID::5</skos:notation>
+        <skos:prefLabel xml:lang="en">monthly</skos:prefLabel>
+        <skos:definition xml:lang="en">data is updated each month</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="quarterly">
+        <skos:notation>ID::6</skos:notation>
+        <skos:prefLabel xml:lang="en">quarterly</skos:prefLabel>
+        <skos:definition xml:lang="en">data is updated every three months</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="biannually">
+        <skos:notation>ID::7</skos:notation>
+        <skos:prefLabel xml:lang="en">biannually</skos:prefLabel>
+        <skos:definition xml:lang="en">data is updated twice each year</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="annually">
+        <skos:notation>ID::8</skos:notation>
+        <skos:prefLabel xml:lang="en">annually</skos:prefLabel>
+        <skos:definition xml:lang="en">data is updated every year</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="asNeeded">
+        <skos:notation>ID::9</skos:notation>
+        <skos:prefLabel xml:lang="en">asNeeded</skos:prefLabel>
+        <skos:definition xml:lang="en">data is updated as deemed necessary</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="irregular">
+        <skos:notation>ID::10</skos:notation>
+        <skos:prefLabel xml:lang="en">irregular</skos:prefLabel>
+        <skos:definition xml:lang="en">data is updated in intervals that are uneven in duration</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="notPlanned">
+        <skos:notation>ID::11</skos:notation>
+        <skos:prefLabel xml:lang="en">notPlanned</skos:prefLabel>
+        <skos:definition xml:lang="en">there are no plans to update the data</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="unknown">
+        <skos:notation>ID::12</skos:notation>
+        <skos:prefLabel xml:lang="en">unknown</skos:prefLabel>
+        <skos:definition xml:lang="en">frequency of maintenance for the data is not known</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="bimonthly">
+        <skos:notation>ID::100</skos:notation>
+        <skos:prefLabel xml:lang="en">bimonthly</skos:prefLabel>
+        <skos:definition xml:lang="en">data is updated every two months (MEDIN extension to codelist)</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="biennially">
+        <skos:notation>ID::101</skos:notation>
+        <skos:prefLabel xml:lang="en">biennially</skos:prefLabel>
+        <skos:definition xml:lang="en">data is updated every two years (MEDIN extension to codelist)</skos:definition>
+      </skos:Concept>
+    </skos:member>
+  </skos:Collection>
+</rdf:RDF>

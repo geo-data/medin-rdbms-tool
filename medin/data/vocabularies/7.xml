@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:skos="http://www.w3.org/2004/02/skos/core#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:grg="http://www.isotc211.org/schemas/grg/" xmlns:owlxml="http://www.w3.org/2006/12/owl2-xml#">
+  <skos:Collection rdf:about="./7.xml">
+    <skos:prefLabel>ISO Restriction codelist</skos:prefLabel>
+    <dc:title>ISO Restriction codelist</dc:title>
+    <dc:description>limitation(s) placed upon the access or use of the data</dc:description>
+    <skos:member>
+      <skos:Concept rdf:about="copyright">
+        <skos:notation>ID::1</skos:notation>
+        <skos:prefLabel xml:lang="en">copyright</skos:prefLabel>
+        <skos:definition xml:lang="en">exclusive right to the publication, production, or sale of the rights to a literary, dramatic, musical, or artistic work, or to the use of a commercial print or label, granted by law for a specified period of time to an author, composer, artist, distributor</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="patent">
+        <skos:notation>ID::2</skos:notation>
+        <skos:prefLabel xml:lang="en">patent</skos:prefLabel>
+        <skos:definition xml:lang="en">government has granted exclusive right to make, sell, use or license an invention or discovery</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="patentPending">
+        <skos:notation>ID::3</skos:notation>
+        <skos:prefLabel xml:lang="en">patentPending</skos:prefLabel>
+        <skos:definition xml:lang="en">produced or sold information awaiting a patent</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="trademark">
+        <skos:notation>ID::4</skos:notation>
+        <skos:prefLabel xml:lang="en">trademark</skos:prefLabel>
+        <skos:definition xml:lang="en">a name, symbol, or other device identifying a product, officially registered and legally restricted to the use of the owner or manufacturer</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="license">
+        <skos:notation>ID::5</skos:notation>
+        <skos:prefLabel xml:lang="en">license</skos:prefLabel>
+        <skos:definition xml:lang="en">formal permission to do something</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="intellectualPropertyRights">
+        <skos:notation>ID::6</skos:notation>
+        <skos:prefLabel xml:lang="en">intellectualPropertyRights</skos:prefLabel>
+        <skos:definition xml:lang="en">rights to financial benefit from and control of distribution of nontangible property that is a result of creativity</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="restricted">
+        <skos:notation>ID::7</skos:notation>
+        <skos:prefLabel xml:lang="en">restricted</skos:prefLabel>
+        <skos:definition xml:lang="en">withheld from general circulation or disclosure</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="otherRestrictions">
+        <skos:notation>ID::8</skos:notation>
+        <skos:prefLabel xml:lang="en">otherRestrictions</skos:prefLabel>
+        <skos:definition xml:lang="en">limitation not listed</skos:definition>
+      </skos:Concept>
+    </skos:member>
+  </skos:Collection>
+</rdf:RDF>

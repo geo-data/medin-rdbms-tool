@@ -150,8 +150,6 @@ basic usage:
 
         # update the vocabularies
         if not args.exclude_vocabs:
-            logger.info("Setting up vocabularies")
-            vocabs.create()    # clear and create the schema and hard-coded data
             logger.info("Updating vocabularies from online sources")
             vocabs.update()    # update the online vocabs
         else:

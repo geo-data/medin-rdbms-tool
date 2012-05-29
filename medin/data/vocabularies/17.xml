@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:skos="http://www.w3.org/2004/02/skos/core#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:grg="http://www.isotc211.org/schemas/grg/" xmlns:owlxml="http://www.w3.org/2006/12/owl2-xml#">
+  <skos:Collection rdf:about="./17.xml">
+    <skos:prefLabel>ISO date type codelist</skos:prefLabel>
+    <dc:title>ISO date type codelist</dc:title>
+    <dc:description>IS0 date type vocabulary</dc:description>
+    <skos:member>
+      <skos:Concept rdf:about="creation">
+        <skos:notation>ID::1</skos:notation>
+        <skos:prefLabel xml:lang="en">creation</skos:prefLabel>
+        <skos:definition xml:lang="en">date identifies when the resource was brought into existence</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="publication">
+        <skos:notation>ID::2</skos:notation>
+        <skos:prefLabel xml:lang="en">publication</skos:prefLabel>
+        <skos:definition xml:lang="en">date identifies when the resource was issued</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="revision">
+        <skos:notation>ID::3</skos:notation>
+        <skos:prefLabel xml:lang="en">revision</skos:prefLabel>
+        <skos:definition xml:lang="en">date identifies when the resource was examined or reexamined and improved or amended</skos:definition>
+      </skos:Concept>
+    </skos:member>
+  </skos:Collection>
+</rdf:RDF>

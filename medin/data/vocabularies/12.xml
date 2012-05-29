@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:skos="http://www.w3.org/2004/02/skos/core#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:grg="http://www.isotc211.org/schemas/grg/" xmlns:owlxml="http://www.w3.org/2006/12/owl2-xml#">
+  <skos:Collection rdf:about="./12.xml">
+    <skos:prefLabel>ISO scope codelist</skos:prefLabel>
+    <dc:title>ISO scope codelist</dc:title>
+    <dc:description>Resource type vocabulary</dc:description>
+    <skos:member>
+      <skos:Concept rdf:about="attribute">
+        <skos:notation>ID::1</skos:notation>
+        <skos:prefLabel xml:lang="en">attribute</skos:prefLabel>
+        <skos:definition xml:lang="en">information applies to the attribute class</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="attributeType">
+        <skos:notation>ID::2</skos:notation>
+        <skos:prefLabel xml:lang="en">attributeType</skos:prefLabel>
+        <skos:definition xml:lang="en">information applies to the characteristic of a feature</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="collectionHardware">
+        <skos:notation>ID::3</skos:notation>
+        <skos:prefLabel xml:lang="en">collectionHardware</skos:prefLabel>
+        <skos:definition xml:lang="en">information applies to the collection hardware class</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="collectionSession">
+        <skos:notation>ID::4</skos:notation>
+        <skos:prefLabel xml:lang="en">collectionSession</skos:prefLabel>
+        <skos:definition xml:lang="en">information applies to the collection session</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="dataset">
+        <skos:notation>ID::5</skos:notation>
+        <skos:prefLabel xml:lang="en">dataset</skos:prefLabel>
+        <skos:definition xml:lang="en">information applies to the dataset</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="series">
+        <skos:notation>ID::6</skos:notation>
+        <skos:prefLabel xml:lang="en">series</skos:prefLabel>
+        <skos:definition xml:lang="en">information applies to the series. Note: &quot;series&quot; applies to any DS_Aggregate</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="nonGeographicDataset">
+        <skos:notation>ID::7</skos:notation>
+        <skos:prefLabel xml:lang="en">nonGeographicDataset</skos:prefLabel>
+        <skos:definition xml:lang="en">information applies to nongeographic data</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="dimensionGroup">
+        <skos:notation>ID::8</skos:notation>
+        <skos:prefLabel xml:lang="en">dimensionGroup</skos:prefLabel>
+        <skos:definition xml:lang="en">information applies to a dimension group</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="feature">
+        <skos:notation>ID::9</skos:notation>
+        <skos:prefLabel xml:lang="en">feature</skos:prefLabel>
+        <skos:definition xml:lang="en">information applies to a feature</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="featureType">
+        <skos:notation>ID::10</skos:notation>
+        <skos:prefLabel xml:lang="en">featureType</skos:prefLabel>
+        <skos:definition xml:lang="en">information applies to a feature type</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="propertyType">
+        <skos:notation>ID::11</skos:notation>
+        <skos:prefLabel xml:lang="en">propertyType</skos:prefLabel>
+        <skos:definition xml:lang="en">information applies to a property type</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="fieldSession">
+        <skos:notation>ID::12</skos:notation>
+        <skos:prefLabel xml:lang="en">fieldSession</skos:prefLabel>
+        <skos:definition xml:lang="en">information applies to a field session</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="software">
+        <skos:notation>ID::13</skos:notation>
+        <skos:prefLabel xml:lang="en">software</skos:prefLabel>
+        <skos:definition xml:lang="en">information applies to a computer program or routine</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="service">
+        <skos:notation>ID::14</skos:notation>
+        <skos:prefLabel xml:lang="en">service</skos:prefLabel>
+        <skos:definition xml:lang="en">information applies to a capability which a service provider entity makes available to a service user entity through a set of interfaces that define a behaviour, such as a use case</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="model">
+        <skos:notation>ID::15</skos:notation>
+        <skos:prefLabel xml:lang="en">model</skos:prefLabel>
+        <skos:definition xml:lang="en">information applies to a copy or limitation of an existing or hypothetical object</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="tile">
+        <skos:notation>ID::16</skos:notation>
+        <skos:prefLabel xml:lang="en">tile</skos:prefLabel>
+        <skos:definition xml:lang="en">information applies to a tile, a spatial subset of geographic data</skos:definition>
+      </skos:Concept>
+    </skos:member>
+  </skos:Collection>
+</rdf:RDF>

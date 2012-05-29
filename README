@@ -31,6 +31,9 @@ dependencies that the tool relies on:
   systems. A list of supported drivers and databases can be found at
   http://www.sqlalchemy.org/docs/core/engines.html#supported-dbapis
 
+- python-skos v0.0.3 (http://pypi.python.org/pypi/python-skos/0.0.3)
+  for dealing with the vocabularies.
+
 To make life a little easier for testing copies of sqlalchemy and suds
 are supplied with the download. Note that these will *not* be
 installed on the system, however!

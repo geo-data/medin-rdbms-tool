@@ -13,12 +13,21 @@ class Term(object):
     """
     An object conforming to the medin.vocabulary.Term interface
     """
-    thesaurus = None
+    collections = None
+    synonyms = None
+    broader = None
+    narrower = None
+    related = None
     definition = None
     code = None
     term = None
     def __init__(self, term):
         self.term = term
+        self.collections = {}
+        self.synonyms = {}
+        self.broader = {}
+        self.narrower = {}
+        self.related = {}
 
 def getSpatialReferenceSystem(code):
     mapping = {
@@ -319,7 +328,7 @@ def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
         if not extent:
             continue
         term = Term(extent)
-        term.thesaurus = medin.metadata.Nil('missing')
+        term.collections = medin.metadata.Nil('missing')
         metadata.extents.append(term)
 
     value = getXpathValue(doc, '/GEMINIDiscoveryMetadata/freqUpdate')
@@ -335,7 +344,7 @@ def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
             continue
         term = vocabs.getTopicCategoryFromCode(value)
         if not term:
-            term = medin.vocabulary.Term(None, value)
+            term = Term(value)
         metadata.topic_categories.append(term)
 
     value = getXpathValue(doc, '/GEMINIDiscoveryMetadata/dateStamp')
@@ -362,7 +371,7 @@ def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
     metadata.temporal_reference = tr
 
     for value in getXpathValues(doc, '/GEMINIDiscoveryMetadata/dataFormat'):
-        metadata.data_formats.extend([medin.vocabulary.Term(None, v) for v in map(strip, value.split(',')) if v])
+        metadata.data_formats.extend([Term(v) for v in map(strip, value.split(',')) if v])
 
     distributorNode = getXpath(xpath, '/GEMINIDiscoveryMetadata/distributor')
     if distributorNode:
@@ -410,7 +419,7 @@ def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
 
     value = getXpathValue(doc, '/GEMINIDiscoveryMetadata/subject')
     if value:
-        metadata.keywords.extend([medin.vocabulary.NERCTerm(None, v, None) for v in map(strip, value.split(';')) if v])
+        metadata.keywords.extend([Term(v) for v in map(strip, value.split(';')) if v])
 
     info = [getXpathValue(doc, '/GEMINIDiscoveryMetadata/supplementalInformation')]
     value = getXpathValue(doc, '/GEMINIDiscoveryMetadata/presentationType')

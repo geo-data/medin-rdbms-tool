@@ -13,12 +13,20 @@ class Term(object):
     """
     An object conforming to the medin.vocabulary.Term interface
     """
-    thesaurus = None
+    collections = None
+    synonyms = None
+    broader = None
+    narrower = None
+    related = None
     definition = None
     code = None
     term = None
     def __init__(self, term):
         self.term = term
+        self.collections = {}
+        self.synonyms = {}
+        self.broader = {}
+        self.narrower = {}
 
     def getTerm(self):
         return term
@@ -308,24 +316,24 @@ def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
     for value in getXpathValues(doc, '/metadata/idinfo/keywords/theme/themekey'):
         if not value:
             continue
-        metadata.topic_categories.extend([medin.vocabulary.Term(None, v) for v in map(strip, value.split(';')) if v])
+        metadata.topic_categories.extend([Term(v) for v in map(strip, value.split(';')) if v])
 
     for value in getXpathValues(doc, '/metadata/idinfo/keywords/place/placekey'):
         if not value:
             continue
-        term = medin.vocabulary.Term(None, value)
+        term = Term(value)
         metadata.keywords.append(term)
 
     for value in getXpathValues(doc, '/metadata/idinfo/keywords/stratum/stratkey'):
         if not value:
             continue
-        term = medin.vocabulary.Term(None, value)
+        term = Term(value)
         metadata.keywords.append(term)
 
     for value in getXpathValues(doc, '/metadata/idinfo/keywords/temporal/tempkey'):
         if not value:
             continue
-        term = medin.vocabulary.Term(None, value)
+        term = Term(value)
         metadata.keywords.append(term)
 
     # append the NERC Data Grid OAI harvesting keyword
@@ -466,7 +474,7 @@ def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
     for node in xpath.xpathEval('/metadata/distinfo/stdorder/digform/digtinfo'):
         xpath.setContextNode(node)
         fmt = getXpathValue(xpath, './formname')
-        term = medin.vocabulary.Term(None, fmt)
+        term = Term(fmt)
         copyXpathValue(xpath, './formvern', term, 'version')
         metadata.data_formats.append(term)
     xpath.setContextNode(doc)
@@ -474,7 +482,7 @@ def parse_filename(filename, vocabs, use_uuid, codespace, skip_invalid):
     value = getXpathValue(doc, '/metadata/idinfo/status/update')
     freq = None
     if value:
-        freq = medin.vocabulary.Term(None, value)
+        freq = Term(value)
     else:
         freq = vocabs.getMaintenanceFrequency('unknown')
     metadata.update_frequency = freq.term

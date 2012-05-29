@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:skos="http://www.w3.org/2004/02/skos/core#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:grg="http://www.isotc211.org/schemas/grg/" xmlns:owlxml="http://www.w3.org/2006/12/owl2-xml#">
+  <skos:Collection rdf:about="./8.xml">
+    <skos:prefLabel>ISO Role codelist</skos:prefLabel>
+    <dc:title>ISO Role codelist</dc:title>
+    <dc:description>Controlled vocabulary for responsible party role</dc:description>
+    <skos:member>
+      <skos:Concept rdf:about="resourceprovider">
+        <skos:notation>ID::1</skos:notation>
+        <skos:prefLabel xml:lang="en">resourceprovider</skos:prefLabel>
+        <skos:definition xml:lang="en">party that supplies the resource</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="custodian">
+        <skos:notation>ID::2</skos:notation>
+        <skos:prefLabel xml:lang="en">custodian</skos:prefLabel>
+        <skos:definition xml:lang="en">party that accepts accountability and responsibility for the data and ensures appropriate care and maintenance of the resource</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="owner">
+        <skos:notation>ID::3</skos:notation>
+        <skos:prefLabel xml:lang="en">owner</skos:prefLabel>
+        <skos:definition xml:lang="en">party that owns the resource</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="user">
+        <skos:notation>ID::4</skos:notation>
+        <skos:prefLabel xml:lang="en">user</skos:prefLabel>
+        <skos:definition xml:lang="en">party that uses the resource</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="distributor">
+        <skos:notation>ID::5</skos:notation>
+        <skos:prefLabel xml:lang="en">distributor</skos:prefLabel>
+        <skos:definition xml:lang="en">party who distributes the resource</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="originator">
+        <skos:notation>ID::6</skos:notation>
+        <skos:prefLabel xml:lang="en">originator</skos:prefLabel>
+        <skos:definition xml:lang="en">party who created the resource</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="pointOfContact">
+        <skos:notation>ID::7</skos:notation>
+        <skos:prefLabel xml:lang="en">pointOfContact</skos:prefLabel>
+        <skos:definition xml:lang="en">party who can be contacted for acquiring knowledge about or acquisition of the resource</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="principalInvestigator">
+        <skos:notation>ID::8</skos:notation>
+        <skos:prefLabel xml:lang="en">principalInvestigator</skos:prefLabel>
+        <skos:definition xml:lang="en">key party responsible for gathering information and conducting research</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="processor">
+        <skos:notation>ID::9</skos:notation>
+        <skos:prefLabel xml:lang="en">processor</skos:prefLabel>
+        <skos:definition xml:lang="en">party who has processed the data in a manner such that the resource has been modified</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="publisher">
+        <skos:notation>ID::10</skos:notation>
+        <skos:prefLabel xml:lang="en">publisher</skos:prefLabel>
+        <skos:definition xml:lang="en">party who published the resource</skos:definition>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="author">
+        <skos:notation>ID::11</skos:notation>
+        <skos:prefLabel xml:lang="en">author</skos:prefLabel>
+        <skos:definition xml:lang="en">party who authored the resource</skos:definition>
+      </skos:Concept>
+    </skos:member>
+  </skos:Collection>
+</rdf:RDF>

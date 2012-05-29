@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:skos="http://www.w3.org/2004/02/skos/core#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:grg="http://www.isotc211.org/schemas/grg/" xmlns:owlxml="http://www.w3.org/2006/12/owl2-xml#">
+  <skos:Collection rdf:about="./1.xml">
+    <skos:prefLabel>INSPIRE spatial data type</skos:prefLabel>
+    <dc:title>INSPIRE spatial data type</dc:title>
+    <dc:description>INSPIRE terminology for Discovery metadata based on the ISO codelist for spatial data service types.</dc:description>
+    <skos:member>
+      <skos:Concept rdf:about="discovery">
+        <skos:notation>ID::discovery</skos:notation>
+        <skos:prefLabel xml:lang="en">discovery</skos:prefLabel>
+        <skos:definition xml:lang="en"/>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="view">
+        <skos:notation>ID::view</skos:notation>
+        <skos:prefLabel xml:lang="en">view</skos:prefLabel>
+        <skos:definition xml:lang="en"/>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="download">
+        <skos:notation>ID::download</skos:notation>
+        <skos:prefLabel xml:lang="en">download</skos:prefLabel>
+        <skos:definition xml:lang="en"/>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="transformation">
+        <skos:notation>ID::transformation</skos:notation>
+        <skos:prefLabel xml:lang="en">transformation</skos:prefLabel>
+        <skos:definition xml:lang="en"/>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="invoke-spatial-data">
+        <skos:notation>ID::invoke-spatial-data</skos:notation>
+        <skos:prefLabel xml:lang="en">invoke spatial data</skos:prefLabel>
+        <skos:definition xml:lang="en"/>
+      </skos:Concept>
+    </skos:member>
+    <skos:member>
+      <skos:Concept rdf:about="other">
+        <skos:notation>ID::other</skos:notation>
+        <skos:prefLabel xml:lang="en">other</skos:prefLabel>
+        <skos:definition xml:lang="en"/>
+      </skos:Concept>
+    </skos:member>
+  </skos:Collection>
+</rdf:RDF>

@@ -33,6 +33,7 @@ package.
 import libxml2
 from xml.sax.saxutils import escape
 from medin.util import Proxy
+from medin.vocabulary import Session as VocabSession
 
 class Metadata(object):
     """
@@ -164,25 +165,72 @@ class Metadata(object):
 
     def mappedKeywords(self):
         """
-        Return a list of keywords including their close matches
+        Return a list of keywords
 
-        Currently P021 is mapped to P220
+        The keywords have been augmented by associating them with
+        INSPIRE theme keywords.
         """
 
         try:
-            terms = iter(self.keywords)
-        except TypeError:
-            return []
+            # try and return the keywords from the cache
+            return self._mapped_keywords
+        except AttributeError:
+            pass
 
-        mapped = set()
-        for term in terms:
+        keywords = set(self.keywords)
+        keywords.update(self._mapKeywords(6))
+        self._mapped_keywords = keywords
+        return keywords
+
+    def _mapKeywords(self, thesaurus_id, initial_terms=None):
+        """
+        Map existing keywords to a particular thesaurus
+
+        This finds all synonyms and broader terms for existing
+        keywords, returning those terms that belong to the specified
+        thesaurus.
+        """
+
+        vocab = VocabSession()
+        thesaurus = vocab.getThesaurus(thesaurus_id)
+
+        def setMapping(term, topics, mapped):
             mapped.add(term)
-            if term.thesaurus_id == 10: # it's a Sea Data Parameter (P021)
-                for match in term.getMatches():
-                    if match.thesaurus_id == 6: # it's an Inspire Theme (P220)
-                        mapped.add(match)
+            if term in thesaurus.members:
+                topics.add(term)
+            else:
+                for attr in (getattr(term, name) for name in ('synonyms', 'broader')):
+                    for other_term in attr.itervalues():
+                        if other_term not in mapped:
+                            setMapping(other_term, topics, mapped)
+        
+        mapping = set()         # the associated keywords
+        mapped = set() # list of terms already associated (used to prevent recursion)
 
-        return mapped
+        if initial_terms:
+            mapping.update(initial_terms)
+
+        for term in self.keywords:
+            setMapping(term, mapping, mapped)
+
+        def reduceMapped(term, mapping):
+            """
+            Reduce the set terms to the most specific
+            available.
+
+            i.e. get rid of broader terms that have narrower
+            definitions available
+            """
+            for t in term.broader.itervalues():
+                if t in mapping:
+                    mapping.remove(t)
+                reduceMapped(t, mapping)
+            
+        for term in list(mapping):
+            if term in mapping:  # it may have been removed already
+                reduceMapped(term, mapping)
+
+        return mapping
 
     def mappedTopicCategories(self):
         """
@@ -194,28 +242,13 @@ class Metadata(object):
         """
 
         try:
-            existing = iter(self.topic_categories)
-        except TypeError:
-            existing = []
+            # try and return the topics from the cache
+            return self._mapped_topics
+        except AttributeError:
+            pass
 
-        try:
-            keywords = iter(self.keywords)
-        except TypeError:
-            keywords = []
-
-        mapped = set(existing)
-        for term in keywords:
-            try:
-                matches = term.getMatches()
-            except AttributeError:
-                # the term doesn't support the correct interface
-                continue
-
-            for match in matches:
-                if match.thesaurus_id == 3: # it's a Topic Category (P051)
-                    mapped.add(match)
-
-        return mapped
+        self._mapped_topics = topic_categories = self._mapKeywords(3, self.topic_categories)
+        return topic_categories
 
 class Year(Proxy):
     """
@@ -255,6 +288,9 @@ class Nil(object):
 
     def __str__(self):
         return str(self.reason)
+
+    def __hash__(self):
+        return hash(self.__class__) + hash(self.reason)
 
 class ResourceLocator(object):
     """
@@ -826,7 +862,7 @@ class XMLBuilder(object):
         Element 11 to XML
         """
 
-        # add in the OAI Harvesting keyword if required
+        # add in the automatically mapped keywords
         nodes = []
         keywords = self.m.mappedKeywords()
         if not keywords:
@@ -836,9 +872,21 @@ class XMLBuilder(object):
         thesauri = {}
         for term in keywords:
             try:
-                thesauri[term.thesaurus].append(term)
-            except KeyError:
-                thesauri[term.thesaurus] = [term]
+                collections = term.collections.values()
+            except AttributeError:
+                # it's not a mappable, so likely to be a `Nil` object:
+                # add it as such
+                collections = [term.collections]
+
+            if not len(collections):
+                # add a default 'thesaurus'
+                collections.append('')
+
+            for thesaurus in collections:
+                try:
+                    thesauri[thesaurus].append(term)
+                except KeyError:
+                    thesauri[thesaurus] = [term]
 
         # create nodes for each thesaurus
         for thesaurus, terms in thesauri.items():
@@ -849,7 +897,7 @@ class XMLBuilder(object):
             for term in terms:
                 keyword = MD_Keywords.newChild(None, 'keyword', None)
                 try:
-                    url = term.key
+                    url = term.uri
                 except AttributeError:
                     url = None
 
@@ -859,7 +907,7 @@ class XMLBuilder(object):
                     Anchor = keyword.newChild(self.ns['gmx'], 'Anchor', escape(term.term))
                     Anchor.setNsProp(self.ns['xlink'], 'href', escape(str(url)))
 
-            if term.thesaurus:
+            if thesaurus:
                 thesaurusName = MD_Keywords.newChild(None, 'thesaurusName', None)
                 thesaurusName.addChild(self.thesaurusToXML(thesaurus))
             nodes.append(descriptiveKeywords)
@@ -876,25 +924,37 @@ class XMLBuilder(object):
 
         geographicElement = self.doc.newDocNode(self.ns['gmd'], 'geographicElement', None)
         EX_GeographicBoundingBox = geographicElement.newChild(None, 'EX_GeographicBoundingBox', None)
-        if bbox.minx:
-            westBoundLongitude = EX_GeographicBoundingBox.newChild(
-                None, 'westBoundLongitude', None)
-            self.setNodeValue(westBoundLongitude, bbox.minx, 'Decimal')
+        westBoundLongitude = EX_GeographicBoundingBox.newChild(
+            None, 'westBoundLongitude', None)
+        if bbox.minx is not None:
+            minx = bbox.minx
+        else:
+            minx = Nil('inapplicable')
+        self.setNodeValue(westBoundLongitude, minx, 'Decimal')
 
-        if bbox.maxx:
-            eastBoundLongitude = EX_GeographicBoundingBox.newChild(
-                None, 'eastBoundLongitude', None)
-            self.setNodeValue(eastBoundLongitude, bbox.maxx, 'Decimal')
+        eastBoundLongitude = EX_GeographicBoundingBox.newChild(
+            None, 'eastBoundLongitude', None)
+        if bbox.maxx is not None:
+            maxx = bbox.maxx
+        else:
+            maxx = Nil('inapplicable')
+        self.setNodeValue(eastBoundLongitude, maxx, 'Decimal')
 
-        if bbox.miny:
-            southBoundLatitude = EX_GeographicBoundingBox.newChild(
-                None, 'southBoundLatitude', None)
-            self.setNodeValue(southBoundLatitude, bbox.miny, 'Decimal')
+        southBoundLatitude = EX_GeographicBoundingBox.newChild(
+            None, 'southBoundLatitude', None)
+        if bbox.miny is not None:
+            miny = bbox.miny
+        else:
+            miny =  Nil('inapplicable')
+        self.setNodeValue(southBoundLatitude, miny, 'Decimal')
 
-        if bbox.maxy:
-            northBoundLatitude = EX_GeographicBoundingBox.newChild(
-                None, 'northBoundLatitude', None)
-            self.setNodeValue(northBoundLatitude, bbox.maxy, 'Decimal')
+        northBoundLatitude = EX_GeographicBoundingBox.newChild(
+            None, 'northBoundLatitude', None)
+        if bbox.maxy is not None:
+            maxy = bbox.maxy
+        else:
+            maxy = Nil('inapplicable')
+        self.setNodeValue(northBoundLatitude, maxy, 'Decimal')
 
         return geographicElement
 
@@ -942,8 +1002,8 @@ class XMLBuilder(object):
 
         CI_Citation = self.doc.newDocNode(self.ns['gmd'], 'CI_Citation', None)
         title = CI_Citation.newChild(None, 'title', None)
-        title.newChild(self.ns['gco'], 'CharacterString', escape(str(thesaurus.name)))
-        CI_Citation.addChild(self.dateToDateType(thesaurus.refdate, 'revision'))
+        title.newChild(self.ns['gco'], 'CharacterString', escape(str(thesaurus.title)))
+        CI_Citation.addChild(self.dateToDateType(thesaurus.date, 'revision'))
 
         return CI_Citation
 
@@ -956,22 +1016,42 @@ class XMLBuilder(object):
         if not extents:
             return nodes
 
-        for extent in extents:
-            geographicElement = self.doc.newDocNode(self.ns['gmd'], 'geographicElement', None)
-            EX_GeographicDescription = geographicElement.newChild(
-                None, 'EX_GeographicDescription', None)
-            EX_GeographicDescription.addChild(self.doc.newDocComment(
-                    'Extent - by Identifier'))
-            geographicIdentifier = EX_GeographicDescription.newChild(None, 'geographicIdentifier', None)
-            MD_Identifier = geographicIdentifier.newChild(None, 'MD_Identifier', None)
-            authority = MD_Identifier.newChild(None, 'authority', None)
-            if not isinstance(extent.thesaurus, Nil):
-                authority.addChild(self.thesaurusToXML(extent.thesaurus))
-            else:
-                self.setNodeValue(authority, extent.thesaurus)
+        # create nodes for each thesaurus
+        for term in extents:
+            try:
+                thesauri = term.collections.values()
+            except AttributeError:
+                # it's not a mappable, so likely to be a `Nil` object:
+                # add it as such
+                thesauri = [term.collections]
+            
+            for thesaurus in thesauri:
+                geographicElement = self.doc.newDocNode(self.ns['gmd'], 'geographicElement', None)
+                EX_GeographicDescription = geographicElement.newChild(
+                    None, 'EX_GeographicDescription', None)
+                EX_GeographicDescription.addChild(self.doc.newDocComment(
+                        'Extent - by Identifier'))
+                geographicIdentifier = EX_GeographicDescription.newChild(None, 'geographicIdentifier', None)
+                MD_Identifier = geographicIdentifier.newChild(None, 'MD_Identifier', None)
+                authority = MD_Identifier.newChild(None, 'authority', None)
+                if not isinstance(thesaurus, Nil):
+                    authority.addChild(self.thesaurusToXML(thesaurus))
+                else:
+                    self.setNodeValue(authority, thesaurus)
 
-            code = MD_Identifier.newChild(None, 'code', None)
-            CharacterString = code.newChild(self.ns['gco'], 'CharacterString', escape(str(extent.term)))
+                code = MD_Identifier.newChild(None, 'code', None)
+                try:
+                    url = term.uri
+                except AttributeError:
+                    # it's a simple string term
+                    url = None
+
+                if not url:
+                    CharacterString = code.newChild(self.ns['gco'], 'CharacterString', escape(str(term.term)))
+                else:
+                    Anchor = code.newChild(self.ns['gmx'], 'Anchor', escape(term.term))
+                    Anchor.setNsProp(self.ns['xlink'], 'href', escape(str(url)))
+
             nodes.append(geographicElement)
 
         return nodes

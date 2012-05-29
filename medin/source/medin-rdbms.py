@@ -108,7 +108,6 @@ class Metadata(metadata.Metadata):
             if service_type:
                 self._service_type = service_type.term
             self._SDSTYP_ID = self.SDSTYP_ID
-
         return self._service_type
     
     def _getTerms(self, thesaurus_id):
@@ -163,7 +162,6 @@ class Metadata(metadata.Metadata):
 
             self._access_constraint_terms = access_constraint_terms
             self._ACCESS_CONSTRAINTS = self.ACCESS_CONSTRAINTS
-
         return self._access_constraint_terms
 
     @property
