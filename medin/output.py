@@ -87,10 +87,11 @@ class Output(object):
     """
     validator = None
 
-    def __init__(self, validate=False):
+    def __init__(self, validate=False, embed_validation=True):
         if validate:
             from medin.validate import Validator
             self.validator = Validator()
+        self.embed_validation = embed_validation
 
     def processMetadata(self, doc, unique_id):
         """
@@ -125,9 +126,11 @@ class Output(object):
         else:
             status = 'Validation status: This document (%s) has NOT been validated as conforming to the MEDIN Metadata Standard' % unique_id
             logger.info(status)
-        # save the validation status in the document itself
-        comment = doc.newDocComment(status)
-        doc.getRootElement().addPrevSibling(comment)
+
+        if self.embed_validation:
+            # save the validation status in the document itself
+            comment = doc.newDocComment(status)
+            doc.getRootElement().addPrevSibling(comment)
 
         # output the document
         f = StringIO()

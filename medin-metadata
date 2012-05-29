@@ -61,12 +61,13 @@ def output_metadata(options, provider):
 
     # determine the output format
     validate = options.validation != 'none'
+    embed_validation = not options.disable_embed_validation
     if options.destination:
-        output = DirOutput(options.destination, validate)
+        output = DirOutput(options.destination, validate, embed_validation)
     elif options.no_mime:
-        output = FileOutput(sys.stdout, validate)
+        output = FileOutput(sys.stdout, validate, embed_validation)
     else:
-        output = MIMEOutput(sys.stdout, validate)
+        output = MIMEOutput(sys.stdout, validate, embed_validation)
 
     # output the metadata entries with appropriate validation messages
     with output:
@@ -227,6 +228,10 @@ basic usage:
         "-v", '--validation', default='strict', metavar='LEVEL',
         choices=['none', 'warn', 'strict'],
         help="""Control validation of output XML. LEVEL can be one of: 'none' - disable validation; 'warn' - output warning messages for failed validations; 'strict' (default) - output a warning message for a failed validation and exit the program""")
+    output_parser.add_argument(
+        "-e", '--disable-embed-validation', action="store_true",
+        help="By default the validation status of a document is embedded in an XML comment at the top of the document. This option prevents this."
+        )
     output_parser.set_defaults(action=do_output)
 
     # Load the available source subparsers
