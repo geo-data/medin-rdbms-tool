@@ -187,6 +187,7 @@ class LoggerProxy(Proxy):
     enable logging at `logging.INFO` and below.
     """
     def setLevel(self, level):
-        logging.getLogger('sqlalchemy').setLevel(level)
+        if level != logging.INFO: # skip the very verbose sqlalchemy `INFO` level
+            logging.getLogger('sqlalchemy').setLevel(level)
         self.__subject__.setLevel(level)
 
