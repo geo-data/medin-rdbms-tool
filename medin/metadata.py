@@ -250,6 +250,12 @@ class Metadata(object):
         self._mapped_topics = topic_categories = self._mapKeywords(3, self.topic_categories)
         return topic_categories
 
+class Comment(Proxy):
+    """
+    A class containing a comment about a particular metadata element
+    """
+    comment = None
+
 class Year(Proxy):
     """
     Class representing a year
@@ -264,7 +270,7 @@ class Year(Proxy):
         
     def __str__(self):
         return str(self.year)
-    
+
 class YearMonth(Proxy):
     """
     Class representing a year and a month
@@ -502,6 +508,23 @@ class XMLBuilder(object):
                    'srv':srv,
                    'xlink':xlink}
 
+    def addChild(self, parent, child):
+        """
+        Add a new child node to `parent`
+
+        If it is a commented node, then the comment is added as a
+        previous sibling to the child node.
+        """
+        if not child:
+            return False
+
+        child, comment = child
+        node = parent.addChild(child)
+        if comment:
+            comment_node = self.doc.newDocComment(comment)
+            node.addPrevSibling(comment_node)
+        return True
+
     def build(self):
         """
         Populate the XML document from the metadata DOM
@@ -526,8 +549,7 @@ class XMLBuilder(object):
         if node: self.root.addChild(node)
         node = self.metadataStandardVersion()
         if node: self.root.addChild(node)
-        node = self.spatialReferenceSystem()
-        if node: self.root.addChild(node)
+        self.addChild(self.root, self.spatialReferenceSystem())
         self.root.addChild(self.identificationInfo())
         self.root.addChild(self.distributionInfo())
         self.root.addChild(self.dataQualityInfo())
@@ -1089,18 +1111,24 @@ class XMLBuilder(object):
 
         referenceSystemInfo = self.doc.newDocNode(
             self.ns['gmd'], 'referenceSystemInfo', None)
-        MD_ReferenceSystem = referenceSystemInfo.newChild(
-            None, 'MD_ReferenceSystem', None)
-        referenceSystemIdentifier = MD_ReferenceSystem.newChild(
-            None, 'referenceSystemIdentifier', None)
-        RS_Identifier = referenceSystemIdentifier.newChild(
-            None, 'RS_Identifier', None)
-        code = RS_Identifier.newChild(None, 'code', None)
-        self.setNodeValue(code, srs, 'CharacterString')
-        codeSpace = RS_Identifier.newChild(None, 'codeSpace', None)
-        CharacterString = codeSpace.newChild(
-            self.ns['gco'], 'CharacterString', 'OGP')
-        return referenceSystemInfo
+
+        if isinstance(srs, Nil):
+            self.setNodeValue(referenceSystemInfo, srs)
+        else:
+            MD_ReferenceSystem = referenceSystemInfo.newChild(
+                None, 'MD_ReferenceSystem', None)
+            referenceSystemIdentifier = MD_ReferenceSystem.newChild(
+                None, 'referenceSystemIdentifier', None)
+            RS_Identifier = referenceSystemIdentifier.newChild(
+                None, 'RS_Identifier', None)
+            code = RS_Identifier.newChild(None, 'code', None)
+            self.setNodeValue(code, srs, 'CharacterString')
+            codeSpace = RS_Identifier.newChild(None, 'codeSpace', None)
+            CharacterString = codeSpace.newChild(
+                self.ns['gco'], 'CharacterString', 'OGP')
+
+        comment = getattr(srs, 'comment', None)
+        return (referenceSystemInfo, comment)
 
     def temporalExtent(self):
         """
