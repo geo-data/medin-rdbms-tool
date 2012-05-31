@@ -61,6 +61,7 @@ class Term(Proxy):
     An object that proxies to `skos.Concept`, replicating the `Term`
     interface used prior to integrating skos.
     """
+    _attr_cache = None
 
     def __init__(self, *args, **kwargs):
         self._attr_cache = {}
@@ -76,19 +77,19 @@ class Term(Proxy):
 
     @property
     def synonyms(self):
-        return Terms(self._obj.synonyms)
+        return Terms(self.__subject__.synonyms)
     
     @property
     def broader(self):
-        return Terms(self._obj.broader)
+        return Terms(self.__subject__.broader)
 
     @property
     def narrower(self):
-        return Terms(self._obj.narrower)
+        return Terms(self.__subject__.narrower)
 
     @property
     def related(self):
-        return Terms(self._obj.related)
+        return Terms(self.__subject__.related)
 
     def __str__(self):
         return self.term
@@ -96,25 +97,19 @@ class Term(Proxy):
     def __repr__(self):
         return 'Term(%s)' % repr(self.term)
 
-    def __eq__(self, other):
-        return self._obj.__eq__(other)
-    
-    def __hash__(self):
-        return self._obj.__hash__()
-
 class Terms(Proxy):
     """
     An object that proxies to `skos.Concepts`, returning `Term`
     instances instead of `skos.Concept`
     """
     def pop(self):
-        return Term(self._obj.pop())
+        return Term(self.__subject__.pop())
     
     def __getitem__(self, key):
-        return Term(self._obj.__getitem__(key))
+        return Term(self.__subject__.__getitem__(key))
 
     def itervalues(self):
-        for value in self._obj.itervalues():
+        for value in self.__subject__.itervalues():
             if not isinstance(value, Term):
                 yield Term(value)
             else:

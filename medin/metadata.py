@@ -274,7 +274,7 @@ class YearMonth(Proxy):
         super(YearMonth, self).__init__(date(year, month, 1))
     
     def isoformat(self):
-        return '%d-%02d' % (self._obj.year, self._obj.month)
+        return '%d-%02d' % (self.__subject__.year, self.__subject__.month)
     
     def __str__(self):
         return self.isoformat()

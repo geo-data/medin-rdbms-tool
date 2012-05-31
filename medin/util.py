@@ -178,76 +178,7 @@ def get_engine(name):
 
     return engine
 
-class Proxy(object):
-    """
-    Proxy class implementing the Adapter Pattern
-
-    This class wraps an object. It passes all unhandled attribute
-    calls to the underlying object. This enables the proxy to override
-    the underlying object's attributes. In practice this works like
-    runtime inheritance.
-    """
-
-    def __init__(self, obj):
-        self._obj = obj
-
-    def __new__(cls, *args, **kwargs):
-        # Create an unique `ProxyWrapper` class for each instance
-        # instantiated. This is necessary because the `_adapt()`
-        # method alters the class structure: if the base `Proxy` class
-        # was altered this would affect any existing `Proxy`
-        # instances; instead the unique `ProxyWrapper` class is
-        # altered which has no unintended side effects.
-        class ProxyWrapper(cls):
-            pass
-
-        return object.__new__(ProxyWrapper, *args, **kwargs)
-
-    def _adapt(self, obj):
-        """
-        Adapt the current instance interface to a new object
-        """
-        # create wrappers for some standard methods that delegate to
-        # the wrapped object. This allows statements using standard
-        # functions such as `str(proxy)` to work as expected.
-        def makeWrapper(name):
-            def _wrapper(self, *args, **kwargs):
-                return getattr(self._obj, name)(*args, **kwargs) # delegate
-            return _wrapper
-
-        # add the new wrappers. Probably need to add some code before
-        # here to delete existing wrappers...
-        cls = self.__class__
-        for name in dir(obj):
-            attr = getattr(obj, name)
-            current_attr = getattr(cls, name, None)
-            if name.startswith('__') \
-                    and name not in ('__init__', '__setattr__', '__getattr__', '__delattr__', '__getattribute__') \
-                    and type(attr).__name__ == 'method-wrapper' \
-                    and type(current_attr).__name__ != 'instancemethod':
-                setattr(cls, name, makeWrapper(name))
-
-    def __setattr__(self, name, value):
-        object.__setattr__(self, name, value)
-        if name == '_obj':
-            # adapt the interface to a new object
-            self._adapt(value)
-
-    def __getattribute__(self, name):
-        try:
-            attr = object.__getattribute__(self, name)
-        except AttributeError:
-            return getattr(object.__getattribute__(self, '_obj'), name)
-
-        # if it's a default method added by the 'new style' class
-        # mechanism then delegate it to the wrapped object.
-        if type(attr).__name__ == 'method-wrapper':
-            try:
-                return getattr(object.__getattribute__(self, '_obj'), name)
-            except AttributeError:
-                pass
-        return attr
-
+from peak.util.proxies import ObjectWrapper as Proxy
 class LoggerProxy(Proxy):
     """
     A proxy logger that propagates log levels to sqlalchemy loggers
@@ -257,5 +188,5 @@ class LoggerProxy(Proxy):
     """
     def setLevel(self, level):
         logging.getLogger('sqlalchemy').setLevel(level)
-        self._obj.setLevel(level)    
+        self.__subject__.setLevel(level)
 
