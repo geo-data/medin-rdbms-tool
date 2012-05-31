@@ -37,10 +37,6 @@ dependencies that the tool relies on:
 - ProxyTypes (http://pypi.python.org/pypi/ProxyTypes) for internal
   object proxying.
 
-To make life a little easier for testing copies of sqlalchemy and suds
-are supplied with the download. Note that these will *not* be
-installed on the system, however!
-
 DOWNLOAD
 --------
 

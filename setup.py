@@ -71,7 +71,7 @@ package_args = dict(
     author='Homme Zwaagstra',
     author_email='hrz@geodata.soton.ac.uk',
     url='http://www.geodata.soton.ac.uk',
-    requires=['libxml2', 'libxslt', 'suds', 'sqlalchemy'],
+    requires=['libxml2', 'libxslt', 'suds', 'sqlalchemy', 'skos', 'peak.util.proxies'],
     packages=['medin', 'medin.source'],
     package_data={'medin': ['data/isotc211/*.txt',
                             'data/isotc211/gco/*',
@@ -91,14 +91,12 @@ package_args = dict(
                             'data/isotc211/srv/*',
                             'data/isotc211/xlink/*',
                             'data/example.sqlite',
-                            'data/terms.json',
-                            'data/thesauri.json',
-                            'data/VocabServerAPI_dl.wsdl',
                             'data/ws_edmo.wsdl',
                             'data/MedinMetadataProfile_v1.7.xsl',
                             'data/ISOTS19139A1Constraints_v1.3.xsl',
                             'data/contacts.sqlite',
-                            'data/vocabularies.sqlite']})
+                            'data/vocabularies.sqlite',
+                            'data/vocabularies/*.xml']})
 
 # decide whether to build an exe or install
 try:
