@@ -1,0 +1,6 @@
+# Requirements file for use with Python PIP 
+# e.g. `pip install -r requirements.txt`
+sqlalchemy
+suds
+ProxyTypes
+python-skos==0.0.3

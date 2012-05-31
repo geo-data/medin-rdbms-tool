@@ -37,6 +37,16 @@ dependencies that the tool relies on:
 - ProxyTypes (http://pypi.python.org/pypi/ProxyTypes) for internal
   object proxying.
 
+Apart from the libxml2, libxslt and cx_Oracle, these dependencies can
+be installed using PIP (http://pypi.python.org/pypi/pip) with the
+following command:
+
+    pip install -r requirements.txt
+
+Consider setting up a virtual Python environment
+(http://pypi.python.org/pypi/virtualenv) to install these dependencies
+from.
+
 DOWNLOAD
 --------
 
